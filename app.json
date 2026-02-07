@@ -7,14 +7,26 @@
     "icon": "./assets/images/icon.png",
     "scheme": "barberapp",
     "userInterfaceStyle": "automatic",
-    "ios": { "supportsTablet": true },
-    "android": { "adaptiveIcon": { "backgroundColor": "#E6F4FE" } },
-    "web": { "bundler": "metro" }, 
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE"
+      }
+    },
+    "web": {
+      "bundler": "metro"
+    },
     "plugins": [
       [
         "expo-splash-screen",
-        { "image": "./assets/images/splash-icon.png", "backgroundColor": "#ffffff" }
-      ]
+        {
+          "image": "./assets/images/splash-icon.png",
+          "backgroundColor": "#ffffff"
+        }
+      ],
+      "@react-native-community/datetimepicker"
     ]
   }
 }

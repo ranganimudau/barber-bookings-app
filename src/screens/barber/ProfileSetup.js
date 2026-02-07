@@ -1,44 +1,72 @@
+import DateTimePicker from '@react-native-community/datetimepicker';
+import * as Location from 'expo-location';
 import { doc, updateDoc } from 'firebase/firestore';
 import React, { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert, ScrollView, StyleSheet, Text, TextInput,
+  TouchableOpacity, View
+} from 'react-native';
 import { auth, db } from '../../firebase/firebaseConfig';
 
 export default function ProfileSetup({ navigation }) {
   const [shopName, setShopName] = useState('');
-  const [address, setAddress] = useState(''); // "123 Street Name, Suburb"
+  const [address, setAddress] = useState('');
+  const [services, setServices] = useState([]);
   const [serviceName, setServiceName] = useState('');
   const [servicePrice, setServicePrice] = useState('');
-  const [services, setServices] = useState([]); // List: Chiskop, Cut & Dye, etc.
+  
+  // New States for Hours and Duration
+  const [openingTime, setOpeningTime] = useState(new Date().setHours(8, 0, 0));
+  const [closingTime, setClosingTime] = useState(new Date().setHours(17, 0, 0));
+  const [duration, setDuration] = useState('30');
+  const [showPicker, setShowPicker] = useState(null); // 'open' or 'close'
+  const [isSaving, setIsSaving] = useState(false);
 
-  // Adds a service to the local list before saving to Firestore
+  const formatTime = (time) => {
+    const d = new Date(time);
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+  };
+
   const addService = () => {
     if (serviceName && servicePrice) {
-      setServices([...services, { name: serviceName, price: servicePrice }]);
+      setServices([...services, { name: serviceName, price: parseFloat(servicePrice) }]);
       setServiceName('');
       setServicePrice('');
-    } else {
-      Alert.alert("Error", "Please enter both service name and price");
     }
   };
 
   const handleSaveProfile = async () => {
     if (!shopName || !address || services.length === 0) {
-      Alert.alert("Error", "Please complete all fields and add at least one service.");
+      Alert.alert("Error", "Please complete all fields.");
       return;
     }
 
+    setIsSaving(true);
     try {
+      const geocoded = await Location.geocodeAsync(address);
+      const coords = geocoded.length > 0 
+        ? { latitude: geocoded[0].latitude, longitude: geocoded[0].longitude } 
+        : null;
+
       const barberRef = doc(db, "barbers", auth.currentUser.uid);
       await updateDoc(barberRef, {
-        shopName: shopName,
-        address: address,
-        services: services, // Array of service objects
-        isProfileComplete: true, // Profile becomes visible on client map 
+        shopName,
+        address,
+        coords,
+        openingTime: formatTime(openingTime),
+        closingTime: formatTime(closingTime),
+        appointmentDuration: parseInt(duration),
+        services,
+        isProfileComplete: true,
       });
-      Alert.alert("Success", "Profile updated! You are now visible to clients.");
-      navigation.navigate('Dashboard');
-    } catch (error) {
-      Alert.alert("Update Error", error.message);
+
+      Alert.alert("Success", "Profile and hours updated!");
+      navigation.navigate('Appointments');
+    } catch (_error) {
+      Alert.alert("Error", "Failed to save profile.");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -47,38 +75,56 @@ export default function ProfileSetup({ navigation }) {
       <Text style={styles.header}>Shop Profile Setup</Text>
       
       <TextInput style={styles.input} placeholder="Shop Name" onChangeText={setShopName} />
-      <TextInput style={styles.input} placeholder="Street Address & Number" onChangeText={setAddress} />
+      <TextInput style={styles.input} placeholder="Street Address, City" onChangeText={setAddress} />
 
-      <View style={styles.serviceBox}>
-        <Text style={styles.subHeader}>Add Your Services</Text>
-        <TextInput 
-          style={styles.input} 
-          placeholder="Service (e.g. Chiskop)" 
-          value={serviceName} 
-          onChangeText={setServiceName} 
-        />
-        <TextInput 
-          style={styles.input} 
-          placeholder="Price (R)" 
-          value={servicePrice} 
-          keyboardType="numeric" 
-          onChangeText={setServicePrice} 
-        />
-        <TouchableOpacity style={styles.addButton} onPress={addService}>
-          <Text style={styles.buttonText}>+ Add Service to Menu</Text>
+      <Text style={styles.subHeader}>Operating Hours & Duration</Text>
+      <View style={styles.row}>
+        <TouchableOpacity style={styles.timeBtn} onPress={() => setShowPicker('open')}>
+          <Text style={styles.label}>Opens: {formatTime(openingTime)}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.timeBtn} onPress={() => setShowPicker('close')}>
+          <Text style={styles.label}>Closes: {formatTime(closingTime)}</Text>
         </TouchableOpacity>
       </View>
 
-      {/* List of services currently added */}
-      {services.map((item, index) => (
-        <View key={index} style={styles.serviceItem}>
-          <Text>{item.name}</Text>
-          <Text style={{fontWeight: 'bold'}}>R{item.price}</Text>
-        </View>
-      ))}
+      <TextInput 
+        style={styles.input} 
+        placeholder="Avg. Haircut Duration (mins)" 
+        keyboardType="numeric"
+        value={duration}
+        onChangeText={setDuration}
+      />
 
-      <TouchableOpacity style={styles.saveButton} onPress={handleSaveProfile}>
-        <Text style={styles.buttonText}>Complete Registration</Text>
+      {showPicker && (
+        <DateTimePicker
+          value={showPicker === 'open' ? new Date(openingTime) : new Date(closingTime)}
+          mode="time"
+          is24Hour={true}
+          display="spinner"
+          onChange={(e, time) => {
+            setShowPicker(null);
+            if (time) {
+              if (showPicker === 'open') {
+                setOpeningTime(time);
+              } else {
+                setClosingTime(time);
+              }
+            }
+          }}
+        />
+      )}
+
+      <View style={styles.serviceBox}>
+        <Text style={styles.subHeader}>Services</Text>
+        <TextInput style={styles.input} placeholder="Service Name" value={serviceName} onChangeText={setServiceName} />
+        <TextInput style={styles.input} placeholder="Price (R)" keyboardType="numeric" value={servicePrice} onChangeText={setServicePrice} />
+        <TouchableOpacity style={styles.addButton} onPress={addService}>
+          <Text style={styles.buttonText}>+ Add Service</Text>
+        </TouchableOpacity>
+      </View>
+
+      <TouchableOpacity style={styles.saveButton} onPress={handleSaveProfile} disabled={isSaving}>
+        {isSaving ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Complete Registration</Text>}
       </TouchableOpacity>
     </ScrollView>
   );
@@ -87,11 +133,13 @@ export default function ProfileSetup({ navigation }) {
 const styles = StyleSheet.create({
   container: { padding: 20, backgroundColor: '#fff' },
   header: { fontSize: 24, fontWeight: 'bold', marginBottom: 20 },
-  subHeader: { fontSize: 18, marginBottom: 10, color: '#333' },
-  input: { borderBottomWidth: 1, borderColor: '#ccc', marginBottom: 20, padding: 10 },
-  serviceBox: { backgroundColor: '#f0f0f0', padding: 15, borderRadius: 10, marginBottom: 20 },
-  addButton: { backgroundColor: '#555', padding: 12, borderRadius: 5, alignItems: 'center' },
-  saveButton: { backgroundColor: '#000', padding: 18, borderRadius: 10, alignItems: 'center', marginTop: 20 },
-  buttonText: { color: '#fff', fontWeight: 'bold' },
-  serviceItem: { flexDirection: 'row', justifyContent: 'space-between', padding: 10, borderBottomWidth: 0.5, borderColor: '#eee' }
+  subHeader: { fontSize: 18, fontWeight: '600', marginVertical: 15 },
+  input: { borderBottomWidth: 1, borderColor: '#ccc', marginBottom: 15, padding: 10 },
+  row: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
+  timeBtn: { padding: 15, backgroundColor: '#f0f0f0', borderRadius: 8, width: '48%', alignItems: 'center' },
+  label: { fontWeight: '500' },
+  serviceBox: { backgroundColor: '#f9f9f9', padding: 15, borderRadius: 10, marginTop: 10 },
+  addButton: { backgroundColor: '#555', padding: 12, borderRadius: 8, alignItems: 'center' },
+  saveButton: { backgroundColor: '#000', padding: 18, borderRadius: 10, alignItems: 'center', marginTop: 30, marginBottom: 50 },
+  buttonText: { color: '#fff', fontWeight: 'bold' }
 });

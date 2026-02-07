@@ -1,48 +1,56 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { doc, getDoc } from 'firebase/firestore';
-import React, { useEffect, useState } from 'react';
-import { ActivityIndicator } from 'react-native';
+import { createStackNavigator } from '@react-navigation/stack';
+import { signOut } from 'firebase/auth';
+import React from 'react';
+import { Alert, TouchableOpacity } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { auth, db } from '../firebase/firebaseConfig';
+import { auth } from '../firebase/firebaseConfig';
 
+// Import Screens
 import Appointments from '../screens/barber/Appointments';
 import Availability from '../screens/barber/Availability';
-import ProfileSetup from '../screens/barber/ProfileSetup';
+import EditProfile from '../screens/barber/EditProfile'; // Using Edit directly now
 
 const Tab = createBottomTabNavigator();
+const Stack = createStackNavigator();
+
+// This stack now focuses only on management/updating
+function ShopManagementStack() {
+  return (
+    <Stack.Navigator>
+      <Stack.Screen 
+        name="UpdateShop" 
+        component={EditProfile} 
+        options={{ 
+          headerShown: false,
+          title: 'Update Shop Details' 
+        }} 
+      />
+    </Stack.Navigator>
+  );
+}
 
 export default function BarberStack() {
-  const [isComplete, setIsComplete] = useState(null);
-
-  useEffect(() => {
-    const checkProfile = async () => {
-      try {
-        if (!auth.currentUser) return;
-        const docSnap = await getDoc(doc(db, "barbers", auth.currentUser.uid));
-        if (docSnap.exists()) {
-          setIsComplete(docSnap.data().isProfileComplete);
-        } else {
-          setIsComplete(false);
-        }
-      } catch (e) {
-        console.warn('Error checking barber profile', e);
-        setIsComplete(false);
-      }
-    };
-    checkProfile();
-  }, []);
-
-  if (isComplete === null) return <ActivityIndicator size="large" style={{flex:1}} />;
+  const handleLogout = () => {
+    Alert.alert("Logout", "Are you sure?", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Logout", style: "destructive", onPress: () => signOut(auth) }
+    ]);
+  };
 
   return (
     <Tab.Navigator
-      // Directs to setup if incomplete, otherwise Appointments
-      initialRouteName={isComplete ? "Appointments" : "ProfileSetup"} 
+      initialRouteName="Appointments"
       screenOptions={({ route }) => ({
+        headerRight: () => (
+          <TouchableOpacity onPress={handleLogout} style={{ marginRight: 15 }}>
+            <Icon name="log-out-outline" size={24} color="#FF3B30" />
+          </TouchableOpacity>
+        ),
         tabBarIcon: ({ color, size }) => {
           let iconName;
           if (route.name === 'Appointments') iconName = 'calendar';
-          else if (route.name === 'ProfileSetup') iconName = 'person-circle';
+          else if (route.name === 'ShopDetails') iconName = 'storefront-outline';
           else if (route.name === 'Availability') iconName = 'time';
           return <Icon name={iconName} size={size} color={color} />;
         },
@@ -51,7 +59,14 @@ export default function BarberStack() {
       })}
     >
       <Tab.Screen name="Appointments" component={Appointments} />
-      <Tab.Screen name="ProfileSetup" component={ProfileSetup} options={{ title: 'Shop Setup' }} />
+      
+      {/* Renamed and updated to focus on editing */}
+      <Tab.Screen 
+        name="ShopDetails" 
+        component={ShopManagementStack} 
+        options={{ title: 'Shop Details' }} 
+      />
+      
       <Tab.Screen name="Availability" component={Availability} />
     </Tab.Navigator>
   );
