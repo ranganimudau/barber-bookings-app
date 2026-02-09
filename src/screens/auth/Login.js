@@ -1,107 +1,173 @@
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
-import React, { useState } from 'react';
-import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { auth, db } from '../../firebase/firebaseConfig';
+import React, { useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import Icon from "react-native-vector-icons/Ionicons";
+import { supabase } from "../../supabase/supabaseClient";
 
-const Login = ({ navigation }) => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [role, setRole] = useState('client'); //  Toggle role selection
+export default function Login({ navigation }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    if (email === '' || password === '') {
-      Alert.alert("Error", "Please fill in all fields");
+    if (!email || !password) {
+      Alert.alert("Error", "Please enter both email and password.");
+      return;
+    }
+    setLoading(true);
+
+    const { data: authData, error: authError } =
+      await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+    if (authError) {
+      Alert.alert("Login Error", authError.message);
+      setLoading(false);
       return;
     }
 
     try {
-      // 1. Authenticate user [cite: 32]
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const uid = userCredential.user.uid;
+      // 1. Fetch user role
+      const { data: profileData, error: profileError } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", authData.user.id)
+        .single();
 
-      // 2. Fetch user role from Firestore to verify 
-      const userDoc = await getDoc(doc(db, "users", uid));
-      
-      if (userDoc.exists()) {
-        const userData = userDoc.data();
-        
-        // Check if the role they selected matches their account 
-        if (userData.role !== role) {
-          Alert.alert("Access Denied", `This account is registered as a ${userData.role}. Please select the correct role.`);
-          return;
+      if (profileError || !profileData)
+        throw new Error("Could not find profile.");
+
+      const role = profileData.role;
+
+      // 2. If Barber, check if setup is complete
+      if (role === "barber") {
+        const { data: barberData } = await supabase
+          .from("barbers")
+          .select("is_profile_complete")
+          .eq("id", authData.user.id)
+          .single();
+
+        if (barberData?.is_profile_complete) {
+          navigation.replace("BarberStack");
+        } else {
+          navigation.replace("ProfileSetup"); // Redirect to setup
         }
+      } else {
+        navigation.replace("ClientStack");
       }
-      // Success: App.js will now automatically navigate to the correct stack [cite: 37]
     } catch (error) {
-      Alert.alert("Login Error", "Invalid email or password.");
+      Alert.alert("Profile Error", error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Barber Booking App</Text>
-
-      {/* Role Selection Toggle  */}
-      <View style={styles.roleContainer}>
-        <TouchableOpacity 
-          style={[styles.roleButton, role === 'client' && styles.activeRole]}
-          onPress={() => setRole('client')}
+      <Text style={styles.title}>BarberApp Login</Text>
+      <TextInput
+        placeholder="Enter your email"
+        placeholderTextColor="#999"
+        style={styles.input}
+        value={email}
+        onChangeText={setEmail}
+        autoCapitalize="none"
+        keyboardType="email-address"
+      />
+      <View style={styles.passwordContainer}>
+        <TextInput
+          placeholder="Enter your password"
+          placeholderTextColor="#999"
+          style={styles.passwordInput}
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry={!showPassword}
+        />
+        <TouchableOpacity
+          onPress={() => setShowPassword(!showPassword)}
+          style={styles.eyeIcon}
         >
-          <Text style={role === 'client' ? styles.activeText : styles.inactiveText}>Client</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.roleButton, role === 'barber' && styles.activeRole]}
-          onPress={() => setRole('barber')}
-        >
-          <Text style={role === 'barber' ? styles.activeText : styles.inactiveText}>Barber</Text>
+          <Icon
+            name={showPassword ? "eye-off-outline" : "eye-outline"}
+            size={22}
+            color="#666"
+          />
         </TouchableOpacity>
       </View>
-      
-      <TextInput 
-        style={styles.input} 
-        placeholder="Enter your email" 
-        placeholderTextColor="#888"
-        keyboardType="email-address"
-        autoCapitalize="none"
-        onChangeText={setEmail} 
-      />
-
-      <TextInput 
-        style={styles.input} 
-        placeholder="Enter your password" 
-        placeholderTextColor="#888"
-        secureTextEntry 
-        onChangeText={setPassword} 
-      />
-
-      <TouchableOpacity style={styles.button} onPress={handleLogin}>
-        <Text style={styles.buttonText}>Login</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity 
-        style={styles.link} 
-        onPress={() => navigation.navigate('Register')}
+      <TouchableOpacity
+        style={styles.button}
+        onPress={handleLogin}
+        disabled={loading}
       >
-        <Text style={styles.linkText}>Don't have an account? Register here </Text>
+        {loading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.buttonText}>Sign In</Text>
+        )}
+      </TouchableOpacity>
+      <TouchableOpacity
+        onPress={() => navigation.navigate("Signup")}
+        style={styles.link}
+      >
+        <Text style={styles.linkText}>Don&apos;t have an account? Sign Up</Text>
       </TouchableOpacity>
     </View>
   );
-};
+}
 
+// ... styles remain the same as your previous version
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, justifyContent: 'center', backgroundColor: '#fff' },
-  title: { fontSize: 28, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' },
-  roleContainer: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 30 },
-  roleButton: { padding: 12, borderWidth: 1, borderColor: '#000', borderRadius: 8, width: '45%', alignItems: 'center' },
-  activeRole: { backgroundColor: '#000' },
-  activeText: { color: '#fff', fontWeight: 'bold' },
-  inactiveText: { color: '#000' },
-  input: { borderBottomWidth: 1, borderBottomColor: '#ccc', marginBottom: 20, padding: 10, fontSize: 16 },
-  button: { backgroundColor: '#000', padding: 15, borderRadius: 8, alignItems: 'center', marginTop: 10 },
-  buttonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
-  link: { marginTop: 20, alignItems: 'center' },
-  linkText: { color: '#0066cc' }
+  container: {
+    flex: 1,
+    justifyContent: "center",
+    padding: 25,
+    backgroundColor: "#fff",
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: "bold",
+    marginBottom: 40,
+    textAlign: "center",
+    color: "#000",
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: "#eee",
+    padding: 15,
+    borderRadius: 12,
+    marginBottom: 15,
+    backgroundColor: "#f9f9f9",
+    fontSize: 16,
+  },
+  passwordContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#eee",
+    borderRadius: 12,
+    marginBottom: 15,
+    backgroundColor: "#f9f9f9",
+  },
+  passwordInput: { flex: 1, padding: 15, fontSize: 16 },
+  eyeIcon: { padding: 10 },
+  button: {
+    backgroundColor: "#000",
+    padding: 18,
+    borderRadius: 12,
+    alignItems: "center",
+    marginTop: 10,
+  },
+  buttonText: { color: "#fff", fontWeight: "bold", fontSize: 16 },
+  link: { marginTop: 20, alignItems: "center" },
+  linkText: { color: "#666" },
 });
-
-export default Login;
