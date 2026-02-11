@@ -1,53 +1,69 @@
 import React, { useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+  ActivityIndicator, Alert, ScrollView, StyleSheet,
+  Text, TextInput, TouchableOpacity, View
 } from "react-native";
-import { supabase } from "../../supabase/supabaseClient"; //
+import { supabase } from "../../supabase/supabaseClient";
+
+const INITIAL_SERVICES = [
+  { name: "Chiskop", price: "20" },
+  { name: "Beard", price: "20" },
+  { name: "Chiskop and Beard", price: "50" },
+  { name: "Cut", price: "50" },
+  { name: "Cut and Dye", price: "100" },
+  { name: "Cut and Beard", price: "70" },
+];
 
 export default function ProfileSetup({ navigation }) {
   const [shopName, setShopName] = useState("");
   const [address, setAddress] = useState("");
+  const [services, setServices] = useState(INITIAL_SERVICES);
   const [loading, setLoading] = useState(false);
+
+  // Function to update price for a specific service
+  const updateServicePrice = (index, newPrice) => {
+    const updated = [...services];
+    updated[index].price = newPrice;
+    setServices(updated);
+  };
 
   const handleSaveProfile = async () => {
     if (!shopName || !address) {
       Alert.alert("Error", "Please fill in all shop details.");
       return;
     }
-
     setLoading(true);
 
     try {
-      // 1. Get the current user's ID
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("User session not found.");
 
-      if (!user) throw new Error("User not found.");
-
-      // 2. Insert or Update the barbers table
-      // Note: latitude/longitude are hardcoded for now;
-      // in a real app, you'd use a Geocoding API.
-      const { error } = await supabase.from("barbers").upsert({
+      // 1. Save Shop Details
+      const { error: barberError } = await supabase.from("barbers").upsert({
         id: user.id,
         shop_name: shopName,
         address: address,
-        latitude: -26.2485, // Default Soweto area
-        longitude: 27.854,
         is_profile_complete: true,
       });
+      if (barberError) throw barberError;
 
-      if (error) throw error;
+      // 2. Save Services
+      const servicesToInsert = services.map(s => ({
+        barber_id: user.id,
+        service_name: s.name,
+        price: parseFloat(s.price)
+      }));
 
-      Alert.alert("Success", "Shop profile completed!");
-      navigation.replace("BarberStack"); //
+      const { error: serviceError } = await supabase
+        .from("barber_services")
+        .insert(servicesToInsert);
+
+      if (serviceError) throw serviceError;
+
+      Alert.alert("Success", "Profile and Services saved!", [
+        { text: "Go to Dashboard", onPress: () => navigation.replace("BarberStack") }
+      ]);
+      
     } catch (error) {
       Alert.alert("Setup Error", error.message);
     } finally {
@@ -58,75 +74,54 @@ export default function ProfileSetup({ navigation }) {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.header}>Shop Setup</Text>
-      <Text style={styles.subHeader}>
-        Complete your profile to start receiving bookings.
-      </Text>
-
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>Shop Name</Text>
+      
+      {/* Shop Info Section */}
+      <View style={styles.section}>
         <TextInput
-          placeholder="e.g. Soweto Fade Masters"
-          placeholderTextColor="#999"
+          placeholder="Shop Name"
           style={styles.input}
           value={shopName}
           onChangeText={setShopName}
         />
-      </View>
-
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>Shop Address</Text>
         <TextInput
-          placeholder="Enter full street address"
-          placeholderTextColor="#999"
+          placeholder="Address"
           style={[styles.input, styles.textArea]}
           value={address}
           onChangeText={setAddress}
           multiline
-          numberOfLines={3}
         />
       </View>
 
-      <TouchableOpacity
-        style={styles.button}
-        onPress={handleSaveProfile}
-        disabled={loading}
-      >
-        {loading ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.buttonText}>Finish Setup</Text>
-        )}
+      <Text style={styles.label}>Set Your Prices (R)</Text>
+      {services.map((service, index) => (
+        <View key={index} style={styles.serviceRow}>
+          <Text style={styles.serviceName}>{service.name}</Text>
+          <TextInput
+            keyboardType="numeric"
+            style={styles.priceInput}
+            value={service.price}
+            onChangeText={(text) => updateServicePrice(index, text)}
+          />
+        </View>
+      ))}
+
+      <TouchableOpacity style={styles.button} onPress={handleSaveProfile} disabled={loading}>
+        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Finish Setup</Text>}
       </TouchableOpacity>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flexGrow: 1,
-    padding: 25,
-    backgroundColor: "#fff",
-    justifyContent: "center",
-  },
-  header: { fontSize: 26, fontWeight: "bold", color: "#000", marginBottom: 10 },
-  subHeader: { fontSize: 14, color: "#666", marginBottom: 30 },
-  inputGroup: { marginBottom: 20 },
-  label: { fontSize: 14, fontWeight: "600", marginBottom: 8, color: "#333" },
-  input: {
-    borderWidth: 1,
-    borderColor: "#eee",
-    padding: 15,
-    borderRadius: 12,
-    backgroundColor: "#f9f9f9",
-    fontSize: 16,
-  },
-  textArea: { height: 100, textAlignVertical: "top" },
-  button: {
-    backgroundColor: "#000",
-    padding: 18,
-    borderRadius: 12,
-    alignItems: "center",
-    marginTop: 10,
-  },
+  container: { padding: 25, backgroundColor: "#fff" },
+  header: { fontSize: 26, fontWeight: "bold", marginBottom: 20, marginTop: 40 },
+  section: { marginBottom: 20 },
+  label: { fontSize: 18, fontWeight: "bold", marginBottom: 15 },
+  input: { borderWidth: 1, borderColor: "#eee", padding: 15, borderRadius: 12, backgroundColor: "#f9f9f9", marginBottom: 10 },
+  textArea: { height: 80 },
+  serviceRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10, padding: 10, backgroundColor: "#f9f9f9", borderRadius: 8 },
+  serviceName: { fontSize: 16, color: "#333", flex: 1 },
+  priceInput: { borderWidth: 1, borderColor: "#ddd", padding: 8, borderRadius: 5, width: 60, textAlign: "center", backgroundColor: "#fff" },
+  button: { backgroundColor: "#000", padding: 18, borderRadius: 12, alignItems: "center", marginTop: 20 },
   buttonText: { color: "#fff", fontWeight: "bold", fontSize: 16 },
 });

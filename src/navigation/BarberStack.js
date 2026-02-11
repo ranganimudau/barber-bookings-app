@@ -2,7 +2,7 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import React from "react";
 import { Alert, TouchableOpacity } from "react-native";
 import Icon from "react-native-vector-icons/Ionicons";
-import { supabase } from "../supabase/supabaseClient"; //
+import { supabase } from "../supabase/supabaseClient";
 
 // Import Barber Screens
 import Appointments from "../screens/barber/Appointments";
@@ -19,7 +19,7 @@ export default function BarberStack() {
         text: "Logout",
         style: "destructive",
         onPress: async () => {
-          const { error } = await supabase.auth.signOut(); //
+          const { error } = await supabase.auth.signOut();
           if (error) Alert.alert("Error", error.message);
         },
       },
@@ -37,21 +37,31 @@ export default function BarberStack() {
         tabBarIcon: ({ color, size }) => {
           let iconName;
           if (route.name === "Appointments") iconName = "calendar";
-          else if (route.name === "ShopDetails")
-            iconName = "storefront-outline";
           else if (route.name === "Availability") iconName = "time";
+          else if (route.name === "ShopDetails") iconName = "storefront-outline";
           return <Icon name={iconName} size={size} color={color} />;
         },
         tabBarActiveTintColor: "#000",
+        tabBarInactiveTintColor: "gray",
+        headerStyle: { backgroundColor: "#fff" },
+        headerTitleStyle: { fontWeight: "bold" },
       })}
     >
-      <Tab.Screen name="Appointments" component={Appointments} />
+      <Tab.Screen 
+        name="Appointments" 
+        component={Appointments} 
+        options={{ title: "My Bookings" }} 
+      />
+      <Tab.Screen 
+        name="Availability" 
+        component={Availability} 
+        options={{ title: "Working Hours" }} 
+      />
       <Tab.Screen
         name="ShopDetails"
         component={EditProfile}
-        options={{ title: "Shop Details" }}
+        options={{ title: "Shop Profile" }} // This now handles shop info AND prices
       />
-      <Tab.Screen name="Availability" component={Availability} />
     </Tab.Navigator>
   );
 }

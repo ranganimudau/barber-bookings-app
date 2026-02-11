@@ -1,73 +1,59 @@
-import { doc, getDoc } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { db } from '../../firebase/firebaseConfig';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { supabase } from '../../supabase/supabaseClient';
 
-export default function BarberProfile({ route, navigation }) {
-  const { barberId } = route.params; // ID passed from the Map marker 
-  const [barber, setBarber] = useState(null);
+export default function BarberProfile({ route }) {
+  const { barberId } = route.params; // The ID from your error logs
+  const [services, setServices] = useState([]);
+  const [shop, setShop] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchBarberData = async () => {
-      try {
-        const docRef = doc(db, "barbers", barberId);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          setBarber(docSnap.data());
-        }
-      } catch (error) {
-        console.error("Error fetching barber profile:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchBarberData();
-  }, [barberId]);
+  }, []);
 
-  if (loading) return <ActivityIndicator size="large" color="#000" style={{ flex: 1 }} />;
+  const fetchBarberData = async () => {
+    // 1. Fetch Shop Info & Global Hours
+    const { data: barber } = await supabase
+      .from('barbers')
+      .select('*')
+      .eq('id', barberId)
+      .single();
+
+    // 2. Fetch Services & Prices
+    const { data: svc } = await supabase
+      .from('barber_services')
+      .select('*')
+      .eq('barber_id', barberId);
+
+    setShop(barber);
+    setServices(svc || []);
+    setLoading(false);
+  };
+
+  if (loading) return <ActivityIndicator style={{ flex: 1 }} />;
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>{barber?.shopName || 'Barbershop'}</Text>
-      <Text style={styles.address}>📍 {barber?.address}</Text>
+    <ScrollView style={styles.container}>
+      <Text style={styles.shopName}>{shop?.shop_name}</Text>
+      <Text style={styles.address}>{shop?.address}</Text>
       
-      <Text style={styles.sectionTitle}>Services & Pricing</Text>
-      {/* Displaying the custom services like Chiskop, Cut & Dye [cite: 13] */}
-      <FlatList
-        data={barber?.services || []}
-        keyExtractor={(item, index) => index.toString()}
-        renderItem={({ item }) => (
-          <View style={styles.serviceRow}>
-            <Text style={styles.serviceName}>{item.name}</Text>
-            <Text style={styles.servicePrice}>R{item.price}</Text>
-          </View>
-        )}
-      />
-
-      <View style={styles.footer}>
-        <Text style={styles.info}>Duration: {barber?.appointmentDuration} mins</Text>
-        <TouchableOpacity 
-          style={styles.bookButton}
-          onPress={() => navigation.navigate('Booking', { barberId: barberId })}
-        >
-          <Text style={styles.buttonText}>Select Date & Time</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+      <Text style={styles.sectionHeader}>Our Services</Text>
+      {services.map(item => (
+        <View key={item.id} style={styles.serviceRow}>
+          <Text>{item.service_name}</Text>
+          <Text style={styles.price}>R{item.price}</Text>
+        </View>
+      ))}
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, backgroundColor: '#fff' },
-  title: { fontSize: 26, fontWeight: 'bold', marginBottom: 5 },
-  address: { fontSize: 14, color: '#666', marginBottom: 20 },
-  sectionTitle: { fontSize: 18, fontWeight: 'bold', marginVertical: 10, borderBottomWidth: 1, borderColor: '#eee', paddingBottom: 5 },
-  serviceRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 0.5, borderColor: '#f0f0f0' },
-  serviceName: { fontSize: 16 },
-  servicePrice: { fontSize: 16, fontWeight: 'bold' },
-  footer: { marginTop: 20, borderTopWidth: 1, borderColor: '#eee', paddingTop: 20 },
-  info: { fontSize: 14, color: '#888', marginBottom: 15, textAlign: 'center' },
-  bookButton: { backgroundColor: '#000', padding: 16, borderRadius: 10, alignItems: 'center' },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' }
+  shopName: { fontSize: 24, fontWeight: 'bold' },
+  address: { color: '#666', marginBottom: 20 },
+  sectionHeader: { fontSize: 18, fontWeight: 'bold', marginTop: 20, marginBottom: 10 },
+  serviceRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#eee' },
+  price: { fontWeight: 'bold' }
 });
