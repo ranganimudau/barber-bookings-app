@@ -1,66 +1,56 @@
-import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import React from "react";
-import { Alert, TouchableOpacity } from "react-native";
-import Icon from "react-native-vector-icons/Ionicons";
-import { supabase } from "../supabase/supabaseClient";
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createStackNavigator } from '@react-navigation/stack';
+import React from 'react';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
-// Import Barber Screens
-import Appointments from "../screens/barber/Appointments";
-import Availability from "../screens/barber/Availability";
-import EditProfile from "../screens/barber/EditProfile";
+// Import all your barber screens
+import Appointments from '../screens/barber/Appointments';
+import Availability from '../screens/barber/Availability';
+import BarberEarnings from '../screens/barber/BarberEarnings';
+import BarberSettings from '../screens/barber/BarberSettings';
+import EditProfile from '../screens/barber/EditProfile';
+import Services from '../screens/barber/Services';
 
 const Tab = createBottomTabNavigator();
+const Stack = createStackNavigator();
+
+// This stack lives inside the "Settings" Tab
+function SettingsStack() {
+  return (
+    <Stack.Navigator>
+      <Stack.Screen name="BarberSettings" component={BarberSettings} options={{ title: "Settings" }} />
+      <Stack.Screen name="EditProfile" component={EditProfile} options={{ title: "Edit Shop Info" }} />
+      <Stack.Screen name="Services" component={Services} options={{ title: "Manage Services" }} />
+      <Stack.Screen name="Availability" component={Availability} options={{ title: "Set Availability" }} />
+    </Stack.Navigator>
+  );
+}
 
 export default function BarberStack() {
-  const handleLogout = async () => {
-    Alert.alert("Logout", "Are you sure you want to log out?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Logout",
-        style: "destructive",
-        onPress: async () => {
-          const { error } = await supabase.auth.signOut();
-          if (error) Alert.alert("Error", error.message);
-        },
-      },
-    ]);
-  };
-
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
-        headerRight: () => (
-          <TouchableOpacity onPress={handleLogout} style={{ marginRight: 15 }}>
-            <Icon name="log-out-outline" size={24} color="#FF3B30" />
-          </TouchableOpacity>
-        ),
-        tabBarIcon: ({ color, size }) => {
+        tabBarIcon: ({ focused, color, size }) => {
           let iconName;
-          if (route.name === "Appointments") iconName = "calendar";
-          else if (route.name === "Availability") iconName = "time";
-          else if (route.name === "ShopDetails") iconName = "storefront-outline";
-          return <Icon name={iconName} size={size} color={color} />;
+          if (route.name === 'Bookings') {
+            iconName = focused ? 'calendar' : 'calendar-outline';
+          } else if (route.name === 'Earnings') {
+            iconName = focused ? 'cash' : 'cash-outline';
+          } else if (route.name === 'SettingsGroup') {
+            iconName = focused ? 'settings' : 'settings-outline';
+          }
+          return <Ionicons name={iconName} size={size} color={color} />;
         },
-        tabBarActiveTintColor: "#000",
-        tabBarInactiveTintColor: "gray",
-        headerStyle: { backgroundColor: "#fff" },
-        headerTitleStyle: { fontWeight: "bold" },
+        tabBarActiveTintColor: '#000',
+        tabBarInactiveTintColor: 'gray',
       })}
     >
+      <Tab.Screen name="Bookings" component={Appointments} />
+      <Tab.Screen name="Earnings" component={BarberEarnings} />
       <Tab.Screen 
-        name="Appointments" 
-        component={Appointments} 
-        options={{ title: "My Bookings" }} 
-      />
-      <Tab.Screen 
-        name="Availability" 
-        component={Availability} 
-        options={{ title: "Working Hours" }} 
-      />
-      <Tab.Screen
-        name="ShopDetails"
-        component={EditProfile}
-        options={{ title: "Shop Profile" }} // This now handles shop info AND prices
+        name="SettingsGroup" 
+        component={SettingsStack} 
+        options={{ title: "Settings", headerShown: false }} 
       />
     </Tab.Navigator>
   );

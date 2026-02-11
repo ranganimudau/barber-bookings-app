@@ -10,6 +10,7 @@ import { supabase } from "../../supabase/supabaseClient";
 export default function EditProfile() {
   const [shopName, setShopName] = useState("");
   const [address, setAddress] = useState("");
+  const [phone, setPhone] = useState(""); // Added to sync with MapScreen
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -17,7 +18,7 @@ export default function EditProfile() {
   // Global Hours State
   const [openingTime, setOpeningTime] = useState(new Date(new Date().setHours(8, 0, 0, 0)));
   const [closingTime, setClosingTime] = useState(new Date(new Date().setHours(17, 0, 0, 0)));
-  const [showPicker, setShowPicker] = useState(null); // 'opening' or 'closing'
+  const [showPicker, setShowPicker] = useState(null); 
 
   const [newServiceName, setNewServiceName] = useState("");
   const [newServicePrice, setNewServicePrice] = useState("");
@@ -32,10 +33,10 @@ export default function EditProfile() {
       const { data: barberData } = await supabase.from("barbers").select("*").eq("id", user.id).single();
       
       if (barberData) {
-        setShopName(barberData.shop_name);
-        setAddress(barberData.address);
+        setShopName(barberData.shop_name || "");
+        setAddress(barberData.address || "");
+        setPhone(barberData.phone_number || "");
         
-        // Load global hours if they exist in DB
         if (barberData.default_opening) setOpeningTime(parseTime(barberData.default_opening));
         if (barberData.default_closing) setClosingTime(parseTime(barberData.default_closing));
       }
@@ -96,19 +97,23 @@ export default function EditProfile() {
       const { data: { user } } = await supabase.auth.getUser();
       
       // Update Shop Info & Global Hours
-      await supabase.from("barbers").upsert({ 
-        id: user.id, 
+      const { error: barberError } = await supabase.from("barbers").update({ 
         shop_name: shopName, 
         address: address,
+        phone_number: phone,
         default_opening: formatTime(openingTime),
         default_closing: formatTime(closingTime)
-      });
+      }).eq("id", user.id);
+
+      if (barberError) throw barberError;
       
+      // Update all existing services
       const updatePromises = services.map((s) =>
         supabase.from("barber_services").update({ price: parseFloat(s.price) || 0 }).eq("id", s.id)
       );
       await Promise.all(updatePromises);
-      Alert.alert("Success", "Shop profile and global hours updated!");
+
+      Alert.alert("Success", "Profile updated successfully!");
     } catch (error) {
       Alert.alert("Update Error", error.message);
     } finally {
@@ -125,12 +130,14 @@ export default function EditProfile() {
         <Text style={styles.sectionHeader}>General Information</Text>
         <View style={styles.card}>
           <Text style={styles.label}>Shop Name</Text>
-          <TextInput style={styles.input} value={shopName} onChangeText={setShopName} />
+          <TextInput style={styles.input} value={shopName} onChangeText={setShopName} placeholder="Shop Name" />
           
-          <Text style={styles.label}>Shop Address</Text>
-          <TextInput style={[styles.input, styles.textArea]} value={address} onChangeText={setAddress} multiline />
+          <Text style={styles.label}>Business Phone</Text>
+          <TextInput style={styles.input} value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholder="Phone Number" />
 
-          {/* Global Hours Selection */}
+          <Text style={styles.label}>Shop Address</Text>
+          <TextInput style={[styles.input, styles.textArea]} value={address} onChangeText={setAddress} multiline placeholder="Address" />
+
           <Text style={styles.label}>Standard Operating Hours</Text>
           <View style={styles.row}>
             <TouchableOpacity style={styles.timeBtn} onPress={() => setShowPicker('opening')}>

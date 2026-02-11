@@ -1,84 +1,222 @@
-import React, { useEffect, useState } from "react";
+import BottomSheet, { BottomSheetFlatList } from "@gorhom/bottom-sheet";
+import * as Location from 'expo-location'; //
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
     ActivityIndicator,
-    FlatList,
+    Keyboard,
     StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+    Text, TextInput, TouchableOpacity,
+    View
 } from "react-native";
+import MapView, { Callout, Marker } from "react-native-maps"; //
+import Icon from "react-native-vector-icons/Ionicons";
 import { supabase } from "../../supabase/supabaseClient";
 
 export default function ClientHome({ navigation }) {
   const [barbers, setBarbers] = useState([]);
+  const [filteredBarbers, setFilteredBarbers] = useState([]);
+  const [userLocation, setUserLocation] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
+  
+  const mapRef = useRef(null); // Ref for map animation
+  const bottomSheetRef = useRef(null);
+  const snapPoints = useMemo(() => ["12%", "50%", "90%"], []);
 
   useEffect(() => {
-    fetchBarbers();
+    getUserLocationAndBarbers();
   }, []);
 
-  const fetchBarbers = async () => {
+  const getUserLocationAndBarbers = async () => {
     try {
-      // Fetch barbers who have completed their shop setup
+      // 1. Request Permission and get user location
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      let coords = null;
+      
+      if (status === 'granted') {
+        const location = await Location.getCurrentPositionAsync({});
+        coords = location.coords;
+        setUserLocation(coords);
+      }
+
+      // 2. Fetch Barbers from database
       const { data, error } = await supabase
         .from("barbers")
         .select("*")
         .eq("is_profile_complete", true);
 
       if (error) throw error;
-      setBarbers(data || []);
+
+      // 3. Process data with distance calculation and sorting
+      const processedData = data.map(barber => {
+        const distance = (coords && barber.latitude && barber.longitude) 
+          ? calculateDistance(coords.latitude, coords.longitude, barber.latitude, barber.longitude)
+          : null;
+        return { ...barber, distance };
+      }).sort((a, b) => (a.distance || 999) - (b.distance || 999));
+
+      setBarbers(processedData);
+      setFilteredBarbers(processedData);
     } catch (error) {
-      console.error("Error fetching barbers:", error.message);
+      console.error(error.message);
     } finally {
       setLoading(false);
     }
   };
 
-  const renderBarber = ({ item }) => (
+  const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371; // Earth's radius in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return (R * c).toFixed(1);
+  };
+
+  // Center Map on the User's location
+  const centerOnUser = () => {
+    if (userLocation) {
+      mapRef.current?.animateToRegion({
+        latitude: userLocation.latitude,
+        longitude: userLocation.longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      }, 1000);
+    }
+  };
+
+  // ZOOM LOGIC: Centers map on a specific shop and collapses the sheet
+  const focusOnBarber = (barber) => {
+    if (barber.latitude && barber.longitude) {
+      mapRef.current?.animateToRegion({
+        latitude: barber.latitude,
+        longitude: barber.longitude,
+        latitudeDelta: 0.005, // Closer zoom
+        longitudeDelta: 0.005,
+      }, 1000);
+      
+      bottomSheetRef.current?.snapToIndex(0); // Show full map
+      Keyboard.dismiss();
+    }
+  };
+
+  const renderBarberItem = ({ item }) => (
     <TouchableOpacity
       style={styles.card}
-      onPress={() => navigation.navigate("BarberProfile", { barberId: item.id })}
+      onPress={() => focusOnBarber(item)}
     >
-      <View>
-        <Text style={styles.shopName}>{item.shop_name}</Text>
+      <View style={styles.cardInfo}>
+        <View style={styles.nameRow}>
+          <Text style={styles.shopName}>{item.shop_name}</Text>
+          {item.distance && (
+            <View style={styles.distanceBadge}>
+              <Text style={styles.distanceText}>{item.distance} km</Text>
+            </View>
+          )}
+        </View>
         <Text style={styles.address}>{item.address}</Text>
       </View>
-      <Text style={styles.arrow}>→</Text>
+      <Icon name="navigate-circle-outline" size={28} color="#000" />
     </TouchableOpacity>
   );
 
-  if (loading) return <ActivityIndicator style={{ flex: 1 }} size="large" />;
+  if (loading) return <ActivityIndicator style={{ flex: 1 }} size="large" color="#000" />;
 
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>Find a Barber</Text>
-      <FlatList
-        data={barbers}
-        keyExtractor={(item) => item.id}
-        renderItem={renderBarber}
-        contentContainerStyle={{ paddingBottom: 20 }}
-        ListEmptyComponent={<Text style={styles.empty}>No barbers found.</Text>}
-      />
+      <MapView
+        ref={mapRef}
+        style={styles.map}
+        showsUserLocation={true}
+        initialRegion={userLocation ? {
+          latitude: userLocation.latitude,
+          longitude: userLocation.longitude,
+          latitudeDelta: 0.05,
+          longitudeDelta: 0.05,
+        } : undefined}
+      >
+        {filteredBarbers.map((barber) => (
+          <Marker
+            key={barber.id}
+            coordinate={{ latitude: parseFloat(barber.latitude), longitude: parseFloat(barber.longitude) }}
+            pinColor="#000"
+          >
+            <Callout 
+              onPress={() => navigation.navigate("BarberProfile", { barberId: barber.id })}
+              style={styles.callout}
+            >
+              <View>
+                <Text style={styles.calloutTitle}>{barber.shop_name}</Text>
+                <Text style={styles.calloutBtn}>View Profile & Book →</Text>
+              </View>
+            </Callout>
+          </Marker>
+        ))}
+      </MapView>
+
+      {/* FLOATING "CENTER ON ME" BUTTON */}
+      <TouchableOpacity style={styles.centerBtn} onPress={centerOnUser}>
+        <Icon name="locate" size={26} color="#000" />
+      </TouchableOpacity>
+
+      <BottomSheet ref={bottomSheetRef} index={1} snapPoints={snapPoints}>
+        <View style={styles.contentContainer}>
+          <Text style={styles.sheetTitle}>Nearby Barbers</Text>
+          <View style={styles.searchSection}>
+            <Icon name="search" size={20} color="#999" />
+            <TextInput
+              style={styles.input}
+              placeholder="Search by shop name..."
+              value={searchQuery}
+              onChangeText={(t) => {
+                setSearchQuery(t);
+                setFilteredBarbers(barbers.filter(b => b.shop_name.toLowerCase().includes(t.toLowerCase())));
+              }}
+            />
+          </View>
+
+          <BottomSheetFlatList
+            data={filteredBarbers}
+            keyExtractor={(item) => item.id}
+            renderItem={renderBarberItem}
+            contentContainerStyle={styles.listPadding}
+          />
+        </View>
+      </BottomSheet>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff", padding: 20 },
-  header: { fontSize: 24, fontWeight: "bold", marginBottom: 20, marginTop: 40 },
-  card: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 20,
-    backgroundColor: "#f9f9f9",
-    borderRadius: 15,
-    marginBottom: 15,
-    borderWidth: 1,
-    borderColor: "#eee",
+  container: { flex: 1 },
+  map: { ...StyleSheet.absoluteFillObject },
+  centerBtn: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    backgroundColor: '#fff',
+    padding: 12,
+    borderRadius: 30,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    zIndex: 10,
   },
-  shopName: { fontSize: 18, fontWeight: "bold", color: "#000" },
-  address: { fontSize: 14, color: "#666", marginTop: 4 },
-  arrow: { fontSize: 20, color: "#999" },
-  empty: { textAlign: "center", marginTop: 50, color: "#999" },
+  contentContainer: { flex: 1, paddingHorizontal: 20 },
+  sheetTitle: { fontSize: 20, fontWeight: "bold", marginBottom: 15 },
+  searchSection: { flexDirection: "row", alignItems: "center", backgroundColor: "#f0f0f0", borderRadius: 12, paddingHorizontal: 15, marginBottom: 20, height: 50 },
+  input: { flex: 1, marginLeft: 10, fontSize: 16 },
+  card: { flexDirection: "row", alignItems: "center", backgroundColor: "#fff", padding: 15, borderRadius: 12, marginBottom: 12, borderWidth: 1, borderColor: "#f0f0f0" },
+  cardInfo: { flex: 1 },
+  nameRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  shopName: { fontSize: 16, fontWeight: "bold" },
+  distanceBadge: { backgroundColor: '#e8f5e9', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
+  distanceText: { color: '#2e7d32', fontSize: 12, fontWeight: 'bold' },
+  address: { fontSize: 13, color: "#666", marginTop: 2 },
+  listPadding: { paddingBottom: 50 },
+  callout: { width: 160, padding: 5, alignItems: 'center' },
+  calloutTitle: { fontWeight: 'bold', fontSize: 14, textAlign: 'center' },
+  calloutBtn: { color: '#007AFF', textAlign: 'center', marginTop: 5, fontSize: 12, fontWeight: '600' }
 });

@@ -1,147 +1,170 @@
-import React, { useEffect, useState } from "react";
+import { useFocusEffect } from '@react-navigation/native';
+import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   FlatList,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View
 } from "react-native";
-import Icon from "react-native-vector-icons/Ionicons";
-import { supabase } from "../../supabase/supabaseClient"; //
+import { supabase } from "../../supabase/supabaseClient";
 
-export default function MyBookings() {
+export default function MyBookings({ navigation }) {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchMyBookings();
-  }, []);
+  // Auto-refresh data when user focuses on this tab
+  useFocusEffect(
+    useCallback(() => {
+      fetchMyBookings();
+    }, [])
+  );
 
   const fetchMyBookings = async () => {
     try {
-      setLoading(true);
-      // 1. Get the current logged-in user
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) return;
-
-      // 2. Fetch bookings and join with barber details
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      // Fix: Specifically joining with 'barbers' to get shop_name and address
       const { data, error } = await supabase
         .from("appointments")
-        .select(
-          `
-          id,
-          date,
-          time,
-          status,
-          barber_id,
-          barbers (shop_name, address)
-        `,
-        )
+        .select(`
+          *,
+          barbers!appointments_barber_id_fkey (shop_name, address)
+        `)
         .eq("client_id", user.id)
-        .order("date", { ascending: true });
+        .order("appointment_date", { ascending: true });
 
       if (error) throw error;
       setBookings(data || []);
     } catch (error) {
-      console.error("Error fetching bookings:", error.message);
-      Alert.alert("Error", "Could not load your bookings.");
+      // This will no longer throw the "column profiles_1.shop_name does not exist" error
+      Alert.alert("Error", error.message);
     } finally {
       setLoading(false);
     }
   };
 
-  const renderBookingItem = ({ item }) => (
-    <View style={styles.card}>
-      <View style={styles.cardHeader}>
-        <Text style={styles.shopName}>
-          {item.barbers?.shop_name || "Barber Shop"}
-        </Text>
-        <View
-          style={[
-            styles.statusBadge,
-            {
-              backgroundColor:
-                item.status === "confirmed" ? "#4CAF50" : "#FF9800",
-            },
-          ]}
-        >
-          <Text style={styles.statusText}>{item.status.toUpperCase()}</Text>
-        </View>
-      </View>
+  // Logic to restrict editing within 48 hours of the appointment
+  const canModify = (appointmentDate) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); 
+    const targetDate = new Date(appointmentDate);
+    const diffInTime = targetDate.getTime() - today.getTime();
+    const diffInDays = diffInTime / (1000 * 3600 * 24);
+    return diffInDays >= 2; 
+  };
 
-      <View style={styles.detailsRow}>
-        <Icon name="calendar-outline" size={16} color="#666" />
-        <Text style={styles.detailText}>{item.date}</Text>
-        <Icon
-          name="time-outline"
-          size={16}
-          color="#666"
-          style={{ marginLeft: 15 }}
-        />
-        <Text style={styles.detailText}>{item.time}</Text>
-      </View>
+  const cancelBooking = async (id) => {
+    Alert.alert("Cancel Appointment", "Are you sure you want to cancel?", [
+      { text: "No" },
+      {
+        text: "Yes, Cancel",
+        onPress: async () => {
+          const { error } = await supabase
+            .from("appointments")
+            .update({ status: 'cancelled' })
+            .eq("id", id);
 
-      <Text style={styles.addressText}>{item.barbers?.address}</Text>
-    </View>
-  );
+          if (!error) {
+            Alert.alert("Cancelled", "Your appointment has been removed.");
+            fetchMyBookings();
+          }
+        }
+      }
+    ]);
+  };
 
-  if (loading) {
+  const renderItem = ({ item }) => {
+    const modifiable = canModify(item.appointment_date);
+
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#000" />
+      <View style={styles.card}>
+        <View style={styles.header}>
+          {/* Accessing shop_name via the barbers join */}
+          <Text style={styles.shopName}>{item.barbers?.shop_name || "Barber Shop"}</Text>
+          <Text style={[
+            styles.status, 
+            { color: item.status === 'confirmed' ? 'green' : item.status === 'cancelled' ? 'red' : 'orange' }
+          ]}>
+            {item.status?.toUpperCase()}
+          </Text>
+        </View>
+        
+        <Text style={styles.detail}>{item.service_name} — R{item.price}</Text>
+        <Text style={styles.time}>{item.appointment_date} at {item.appointment_time?.substring(0, 5)}</Text>
+
+        {modifiable && item.status !== 'cancelled' ? (
+          <View style={styles.actionRow}>
+            <TouchableOpacity 
+              style={styles.editBtn} 
+              onPress={() => {
+                // Nested Navigation: Navigate to the Find tab, then the BarberProfile screen
+                navigation.navigate("Find", { 
+                  screen: "BarberProfile", 
+                  params: { 
+                    barberId: item.barber_id, 
+                    editMode: true, 
+                    appointmentId: item.id 
+                  }
+                });
+              }}
+            >
+              <Text style={styles.btnText}>Edit Time</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.cancelBtn} onPress={() => cancelBooking(item.id)}>
+              <Text style={styles.btnText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        ) : item.status !== 'cancelled' ? (
+          <Text style={styles.lockText}>Rescheduling locked (within 48h)</Text>
+        ) : null}
       </View>
     );
-  }
+  };
+
+  if (loading) return <ActivityIndicator style={styles.loader} size="large" color="#000" />;
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>My Appointments</Text>
       <FlatList
         data={bookings}
         keyExtractor={(item) => item.id}
-        renderItem={renderBookingItem}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No upcoming bookings found.</Text>
-          </View>
-        }
+        renderItem={renderItem}
         onRefresh={fetchMyBookings}
         refreshing={loading}
+        contentContainerStyle={{ paddingBottom: 20 }}
+        ListEmptyComponent={<Text style={styles.empty}>No upcoming appointments found.</Text>}
       />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f8f9fa", padding: 20 },
-  center: { flex: 1, justifyContent: "center", alignItems: "center" },
-  title: { fontSize: 24, fontWeight: "bold", marginBottom: 20, marginTop: 40 },
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: 15,
-    padding: 15,
-    marginBottom: 15,
+  container: { flex: 1, backgroundColor: "#f8f8f8", padding: 15 },
+  loader: { flex: 1, justifyContent: 'center' },
+  card: { 
+    backgroundColor: "#fff", 
+    padding: 20, 
+    borderRadius: 15, 
+    marginBottom: 15, 
     elevation: 3,
-    shadowColor: "#000",
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
+    shadowRadius: 4
   },
-  cardHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  shopName: { fontSize: 18, fontWeight: "bold" },
-  statusBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 5 },
-  statusText: { color: "#fff", fontSize: 10, fontWeight: "bold" },
-  detailsRow: { flexDirection: "row", alignItems: "center", marginBottom: 8 },
-  detailText: { marginLeft: 5, color: "#444", fontSize: 14 },
-  addressText: { color: "#888", fontSize: 12 },
-  emptyContainer: { alignItems: "center", marginTop: 50 },
-  emptyText: { color: "#999", fontSize: 16 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
+  shopName: { fontSize: 18, fontWeight: 'bold', color: '#000' },
+  status: { fontWeight: 'bold', fontSize: 12 },
+  detail: { fontSize: 16, color: '#444' },
+  time: { fontSize: 14, color: '#888', marginTop: 5 },
+  actionRow: { flexDirection: 'row', marginTop: 15, gap: 10 },
+  editBtn: { backgroundColor: '#000', padding: 12, borderRadius: 10, flex: 1, alignItems: 'center' },
+  cancelBtn: { backgroundColor: '#ff3b30', padding: 12, borderRadius: 10, flex: 1, alignItems: 'center' },
+  btnText: { color: '#fff', fontWeight: 'bold' },
+  lockText: { marginTop: 15, fontSize: 12, color: '#999', fontStyle: 'italic', textAlign: 'center' },
+  empty: { textAlign: 'center', marginTop: 100, color: '#999', fontSize: 16 }
 });
