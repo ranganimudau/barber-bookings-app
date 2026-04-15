@@ -10,6 +10,7 @@ import BarberEarnings from '../screens/barber/BarberEarnings';
 import BarberSettings from '../screens/barber/BarberSettings';
 import EditProfile from '../screens/barber/EditProfile';
 import Services from '../screens/barber/Services';
+import SubscriptionSettings from '../screens/barber/SubscriptionSettings';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -17,11 +18,23 @@ const Stack = createStackNavigator();
 // This stack lives inside the "Settings" Tab
 function SettingsStack() {
   return (
-    <Stack.Navigator>
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: {
+          backgroundColor: '#0A0A0A',
+          elevation: 0,
+          shadowOpacity: 0,
+          borderBottomWidth: 0,
+        },
+        headerTintColor: '#C5A070',
+        headerTitleStyle: { color: '#C5A070', fontWeight: '700' },
+        headerShadowVisible: false,
+      }}
+    >
       <Stack.Screen name="BarberSettings" component={BarberSettings} options={{ title: "Settings" }} />
       <Stack.Screen name="EditProfile" component={EditProfile} options={{ title: "Edit Shop Info" }} />
       <Stack.Screen name="Services" component={Services} options={{ title: "Manage Services" }} />
-      <Stack.Screen name="Availability" component={Availability} options={{ title: "Set Availability" }} />
+      <Stack.Screen name="SubscriptionSettings" component={SubscriptionSettings} options={{ title: "Subscription" }} />
     </Stack.Navigator>
   );
 }
@@ -36,17 +49,39 @@ export default function BarberStack() {
             iconName = focused ? 'calendar' : 'calendar-outline';
           } else if (route.name === 'Earnings') {
             iconName = focused ? 'cash' : 'cash-outline';
+          } else if (route.name === 'Availability') {
+            iconName = focused ? 'time' : 'time-outline';
           } else if (route.name === 'SettingsGroup') {
             iconName = focused ? 'settings' : 'settings-outline';
           }
           return <Ionicons name={iconName} size={size} color={color} />;
         },
-        tabBarActiveTintColor: '#000',
-        tabBarInactiveTintColor: 'gray',
+        headerStyle: {
+          backgroundColor: '#0A0A0A',
+          elevation: 0,
+          shadowOpacity: 0,
+          borderBottomWidth: 0,
+        },
+        headerTintColor: '#C5A070',
+        headerTitleStyle: { color: '#C5A070', fontWeight: '700' },
+        headerShadowVisible: false,
+        tabBarStyle: {
+          backgroundColor: '#0A0A0A',
+          borderTopWidth: 0,
+          elevation: 0,
+          shadowOpacity: 0,
+        },
+        tabBarActiveTintColor: '#C5A070',
+        tabBarInactiveTintColor: '#757575',
       })}
     >
       <Tab.Screen name="Bookings" component={Appointments} />
       <Tab.Screen name="Earnings" component={BarberEarnings} />
+      <Tab.Screen
+        name="Availability"
+        component={Availability}
+        options={{ title: "Availability" }}
+      />
       <Tab.Screen 
         name="SettingsGroup" 
         component={SettingsStack} 

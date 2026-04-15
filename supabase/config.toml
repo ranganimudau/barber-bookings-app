@@ -1,0 +1,18 @@
+# https://supabase.com/docs/guides/cli/config
+
+[functions.delete-barber-account]
+# Gateway JWT checks often fail for valid mobile tokens; we validate inside the function instead.
+verify_jwt = false
+
+[functions.create-payfast-checkout]
+# Same as delete-barber-account: RN/EAS builds often get 401 Invalid JWT at the gateway even with a valid session.
+# Auth is enforced inside the function via supabaseAuth.auth.getUser() with the caller's Bearer token.
+verify_jwt = false
+
+[functions.payfast-itn]
+# PayFast server POSTs the ITN with no user JWT; must not require gateway JWT verification.
+verify_jwt = false
+
+[functions.payfast-app-return]
+# Browser GET after PayFast; no JWT. Serves HTML that opens barberapp://…
+verify_jwt = false

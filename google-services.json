@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "287546465958",
+    "project_id": "barber-app-90c24",
+    "storage_bucket": "barber-app-90c24.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:287546465958:android:bd1d474aebe3daaf5f1e67",
+        "android_client_info": {
+          "package_name": "com.rangani.barberapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC6qH2tPyMJWLLDtqz-t-qiFNCaq-_gSCE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

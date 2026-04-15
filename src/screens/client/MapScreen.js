@@ -5,6 +5,7 @@ import {
   Alert,
   Dimensions,
   FlatList,
+  Keyboard,
   Linking,
   StyleSheet,
   Switch,
@@ -157,6 +158,8 @@ export default function MapScreen({ navigation }) {
             style={styles.searchInput}
             value={searchQuery}
             onChangeText={handleSearch}
+            returnKeyType="done"
+            onSubmitEditing={Keyboard.dismiss}
           />
           {searchQuery ? (
             <TouchableOpacity onPress={() => handleSearch("")}>
@@ -177,8 +180,8 @@ export default function MapScreen({ navigation }) {
         </View>
       </View>
 
-      <MapView 
-        style={styles.map} 
+      <MapView
+        style={styles.map}
         initialRegion={{
           latitude: userLocation?.latitude || -26.2485,
           longitude: userLocation?.longitude || 27.854,

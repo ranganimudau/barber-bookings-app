@@ -8,12 +8,32 @@
     "scheme": "barberapp",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "App needs access to the camera to take photos for service listings.",
+        "NSPhotoLibraryUsageDescription": "App needs access to your photo library to choose images for services.",
+        "NSPhotoLibraryAddUsageDescription": "App needs permission to save photos if you choose to save images.",
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "bundleIdentifier": "com.rangani.barberapp"
     },
     "android": {
+      "softwareKeyboardLayoutMode": "resize",
+      "package": "com.rangani.barberapp",
+      "googleServicesFile": "./google-services.json",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyBPAI35a2MLHPF_GOs0i6Wzdcj5A2LJqSI"
+        }
+      },
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE"
-      }
+      },
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
     },
     "web": {
       "bundler": "metro"
@@ -26,7 +46,20 @@
           "backgroundColor": "#ffffff"
         }
       ],
-      "@react-native-community/datetimepicker"
-    ]
+      "@react-native-community/datetimepicker",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#111827"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "3e8f79ea-bb61-42a9-90d7-ed3917e21093"
+      }
+    },
+    "owner": "rangani"
   }
 }

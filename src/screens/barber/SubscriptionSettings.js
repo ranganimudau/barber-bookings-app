@@ -1,0 +1,102 @@
+import React, { useEffect, useMemo, useState } from "react";
+import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import Ionicons from "react-native-vector-icons/Ionicons";
+import { supabase } from "../../supabase/supabaseClient";
+import { colors } from "../../theme/clientTheme";
+import { ensureBarberSubscriptionState, getSubscriptionLabel, getTrialRemaining, isSubscriptionEligible } from "../../utils/subscriptionState";
+
+export default function SubscriptionSettings({ navigation }) {
+  const [subState, setSubState] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const eligible = useMemo(() => isSubscriptionEligible(subState), [subState]);
+  const remaining = useMemo(() => getTrialRemaining(subState), [subState]);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+      setSubState(await ensureBarberSubscriptionState(user.id));
+    } catch (e) {
+      Alert.alert("Error", e?.message || "Could not load subscription state");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const handleOpenCheckout = () =>
+    navigation.navigate("SubscriptionPaywall", { fromSettings: true });
+
+  return (
+    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      <Text style={styles.title}>Subscription</Text>
+      <Text style={styles.subtitle}>{getSubscriptionLabel(subState)}</Text>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Status</Text>
+        <View style={styles.row}>
+          <Ionicons
+            name={eligible ? "checkmark-circle" : "lock-closed-outline"}
+            size={18}
+            color={eligible ? "#22C55E" : colors.accent}
+          />
+          <Text style={styles.rowText}>{eligible ? "Active / Eligible" : "Locked features enabled after trial ends"}</Text>
+        </View>
+        <Text style={styles.hint}>
+          {subState?.status === "trial"
+            ? `Trial remaining: ${remaining} booking(s)`
+            : subState?.status === "active"
+            ? "Subscription is active."
+            : "Registration/subscription payment required."}
+        </Text>
+      </View>
+
+      <TouchableOpacity style={styles.accentBtn} onPress={handleOpenCheckout} disabled={loading} activeOpacity={0.9}>
+        <Text style={styles.accentBtnText}>Manage payment</Text>
+      </TouchableOpacity>
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.background },
+  content: { padding: 18, paddingTop: 24, paddingBottom: 34 },
+  title: { color: "#F5F5F0", fontSize: 22, fontWeight: "900", marginBottom: 6 },
+  subtitle: { color: colors.textMuted, fontWeight: "800", marginBottom: 18 },
+  card: {
+    backgroundColor: "rgba(255,255,255,0.03)",
+    borderWidth: 1,
+    borderColor: "rgba(197,160,112,0.25)",
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 14,
+  },
+  cardTitle: { color: colors.accent, fontWeight: "900", marginBottom: 10 },
+  row: { flexDirection: "row", alignItems: "center", gap: 10 },
+  rowText: { color: "#F5F5F0", fontWeight: "800" },
+  hint: { color: colors.textMuted, fontWeight: "700", marginTop: 10 },
+  accentBtn: {
+    backgroundColor: colors.accent,
+    borderRadius: 14,
+    padding: 16,
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  accentBtnText: { color: "#0A0A0A", fontWeight: "900", fontSize: 16 },
+  ghostBtn: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(197,160,112,0.35)",
+    padding: 14,
+    alignItems: "center",
+  },
+  ghostBtnText: { color: colors.accent, fontWeight: "900" },
+});
+
