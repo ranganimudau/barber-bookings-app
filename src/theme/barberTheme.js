@@ -1,34 +1,37 @@
 /**
- * Barber-side theme — warm, light, boutique/wellness aesthetic.
- * Kept separate from clientTheme.js (shared by the client booking flow and
- * auth screens) so this rollout doesn't re-theme anything else yet.
+ * Barber-side theme — clean corporate: white surfaces, navy/charcoal text,
+ * one confident teal accent (validated via the dataviz palette checker:
+ * lightness band, chroma floor, and contrast vs. white all pass). Flat
+ * surfaces, soft rounded pill controls. Kept separate from clientTheme.js
+ * (shared by the client booking flow and auth screens) so this rollout
+ * doesn't re-theme anything else yet.
  */
 export const colors = {
-  background: '#FBF7F2',
+  background: '#FFFFFF',
   surface: '#FFFFFF',
-  surfaceMuted: '#F5EFE8',
+  surfaceMuted: '#F1F4F9',
 
-  text: '#2B2420',
-  textSecondary: '#5C4F45',
-  textMuted: '#8A7F76',
+  text: '#1A2332',
+  textSecondary: '#334155',
+  textMuted: '#64748B',
 
-  accent: '#C1704F', // warm terracotta / clay
-  accentDark: '#A15A3D',
-  accentSoft: '#F3E4DC', // tint for badges/backgrounds
+  accent: '#0F9C8D',
+  accentDark: '#0C7A6E',
+  accentSoft: '#E3F5F2', // pale teal tint — badges/pills only
   accentText: '#FFFFFF', // text/icon color on top of solid accent fills
 
-  success: '#6E9169',
-  successBg: '#E8EFE6',
-  pending: '#D9A441',
-  pendingBg: '#FBF1DD',
-  error: '#C1584A',
-  errorBg: '#F8E7E4',
+  success: '#16A34A',
+  successBg: '#E7F6EC',
+  pending: '#D97706',
+  pendingBg: '#FDF1DF',
+  error: '#DC2626',
+  errorBg: '#FCE9E9',
 
-  border: 'rgba(43,36,32,0.10)',
-  borderStrong: 'rgba(43,36,32,0.18)',
+  border: '#E2E8F0',
+  borderStrong: '#CBD5E1',
 
   white: '#FFFFFF',
-  black: '#2B2420',
+  black: '#1A2332',
 };
 
 export const spacing = {
@@ -61,21 +64,21 @@ export const typography = {
 export const shadows = {
   card: {
     elevation: 2,
-    shadowColor: '#2B2420',
+    shadowColor: '#1A2332',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.06,
     shadowRadius: 10,
   },
   button: {
     elevation: 2,
-    shadowColor: '#2B2420',
+    shadowColor: '#1A2332',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 6,
   },
   floating: {
     elevation: 6,
-    shadowColor: '#2B2420',
+    shadowColor: '#1A2332',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.1,
     shadowRadius: 16,

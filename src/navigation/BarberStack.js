@@ -12,6 +12,7 @@ import BarberSettings from '../screens/barber/BarberSettings';
 import EditProfile from '../screens/barber/EditProfile';
 import Services from '../screens/barber/Services';
 import SubscriptionSettings from '../screens/barber/SubscriptionSettings';
+import { colors as barberColors } from '../theme/barberTheme';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -70,16 +71,17 @@ export default function BarberStack() {
         headerTitleStyle: { color: '#C5A070', fontWeight: '700' },
         headerShadowVisible: false,
         tabBarStyle: {
-          backgroundColor: '#0A0A0A',
-          borderTopWidth: 0,
+          backgroundColor: barberColors.surface,
+          borderTopWidth: 1,
+          borderTopColor: barberColors.border,
           elevation: 0,
           shadowOpacity: 0,
         },
-        tabBarActiveTintColor: '#C5A070',
-        tabBarInactiveTintColor: '#757575',
+        tabBarActiveTintColor: barberColors.accent,
+        tabBarInactiveTintColor: barberColors.textMuted,
       })}
     >
-      <Tab.Screen name="Dashboard" component={BarberDashboard} />
+      <Tab.Screen name="Dashboard" component={BarberDashboard} options={{ headerShown: false }} />
       <Tab.Screen name="Bookings" component={Appointments} />
       <Tab.Screen name="Earnings" component={BarberEarnings} />
       <Tab.Screen
