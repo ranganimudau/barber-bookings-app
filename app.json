@@ -32,6 +32,9 @@
       "permissions": [
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE"
       ]
     },
@@ -53,13 +56,21 @@
           "icon": "./assets/images/icon.png",
           "color": "#111827"
         }
-      ]
+      ],
+      "expo-font",
+      "expo-web-browser"
     ],
     "extra": {
       "eas": {
         "projectId": "3e8f79ea-bb61-42a9-90d7-ed3917e21093"
       }
     },
-    "owner": "rangani"
+    "owner": "rangani",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/3e8f79ea-bb61-42a9-90d7-ed3917e21093"
+    }
   }
 }

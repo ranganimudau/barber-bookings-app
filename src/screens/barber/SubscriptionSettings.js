@@ -3,14 +3,14 @@ import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "rea
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { supabase } from "../../supabase/supabaseClient";
 import { colors } from "../../theme/clientTheme";
-import { ensureBarberSubscriptionState, getSubscriptionLabel, getTrialRemaining, isSubscriptionEligible } from "../../utils/subscriptionState";
+import { ensureBarberSubscriptionState, getSubscriptionLabel, getTrialDaysRemaining, isSubscriptionEligible } from "../../utils/subscriptionState";
 
 export default function SubscriptionSettings({ navigation }) {
   const [subState, setSubState] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const eligible = useMemo(() => isSubscriptionEligible(subState), [subState]);
-  const remaining = useMemo(() => getTrialRemaining(subState), [subState]);
+  const trialDaysRemaining = useMemo(() => getTrialDaysRemaining(subState), [subState]);
 
   const load = async () => {
     setLoading(true);
@@ -47,13 +47,15 @@ export default function SubscriptionSettings({ navigation }) {
             size={18}
             color={eligible ? "#22C55E" : colors.accent}
           />
-          <Text style={styles.rowText}>{eligible ? "Active / Eligible" : "Locked features enabled after trial ends"}</Text>
+          <Text style={styles.rowText}>{eligible ? "Active / Eligible" : "Locked — payment required"}</Text>
         </View>
         <Text style={styles.hint}>
-          {subState?.status === "trial"
-            ? `Trial remaining: ${remaining} booking(s)`
-            : subState?.status === "active"
+          {subState?.subscription_status === "active"
             ? "Subscription is active."
+            : subState?.subscription_status === "grace"
+            ? "Renewal failed — pay now to avoid your shop locking."
+            : eligible
+            ? `Trial remaining: ${trialDaysRemaining} day(s)`
             : "Registration/subscription payment required."}
         </Text>
       </View>

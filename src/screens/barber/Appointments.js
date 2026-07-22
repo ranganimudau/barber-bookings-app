@@ -1,6 +1,4 @@
-import * as Notifications from "expo-notifications";
-import { useFocusEffect } from "@react-navigation/native";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -17,7 +15,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import { colors } from "../../theme/clientTheme";
 import { supabase } from "../../supabase/supabaseClient";
 import { resolveStorageImageUrl } from "../../utils/storageImageUrl";
-import { ensureBarberSubscriptionState, getTrialRemaining, isSubscriptionEligible } from "../../utils/subscriptionState";
+import { ensureBarberSubscriptionState, isSubscriptionEligible } from "../../utils/subscriptionState";
+import { scheduleLocalNotificationSafe } from "../../utils/safeLocalNotification";
 
 export default function Appointments({ navigation }) {
   const [bookings, setBookings] = useState([]);
@@ -32,45 +31,35 @@ export default function Appointments({ navigation }) {
   const subscriptionEligible = isSubscriptionEligible(subscriptionState);
   const subscriptionKnown = !!subscriptionState;
   const subscriptionLocked = subscriptionKnown && !subscriptionEligible && !subscriptionLoading;
-  const trialFinished =
-    subscriptionState?.status === "trial" &&
-    getTrialRemaining(subscriptionState) <= 0;
+  const trialFinished = !!subscriptionState?.trial_start && subscriptionLocked;
 
   const sendLocalNotification = async (title, body) => {
     try {
-      await Notifications.scheduleNotificationAsync({
-        content: { title, body, sound: "default" },
-        trigger: null,
-      });
+      await scheduleLocalNotificationSafe({ title, body, sound: "default" });
     } catch (error) {
       console.log("Notification schedule error:", error?.message);
     }
   };
 
-  const loadSubscription = useCallback(async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      setBarberId(user.id);
-      const state = await ensureBarberSubscriptionState(user.id);
-      setSubscriptionState(state);
-    } catch (e) {
-      console.warn("Subscription state load failed:", e?.message);
-      setSubscriptionState(null);
-    } finally {
-      setSubscriptionLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    loadSubscription();
-  }, [loadSubscription]);
+    const loadSubscription = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        setBarberId(user.id);
+        const state = await ensureBarberSubscriptionState(user.id);
+        setSubscriptionState(state);
+      } catch (e) {
+        // If subscription table doesn't exist yet, keep everything enabled for dev.
+        console.warn("Subscription state load failed:", e?.message);
+        setSubscriptionState(null);
+      } finally {
+        setSubscriptionLoading(false);
+      }
+    };
 
-  useFocusEffect(
-    useCallback(() => {
-      loadSubscription();
-    }, [loadSubscription])
-  );
+    loadSubscription();
+  }, []);
 
 
   useEffect(() => {
@@ -176,9 +165,12 @@ export default function Appointments({ navigation }) {
     try {
       const newLower = String(newStatus || "").toLowerCase();
       const prevLower = String(prevStatus || "").toLowerCase();
+      const acceptedStatuses = ["confirmed", "accepted", "approved"];
+      const terminalStatuses = ["cancelled", "declined", "rejected", "completed", "done"];
       const isAcceptAction =
-        (newLower === "confirmed" || newLower === "accepted" || newLower === "approved") &&
-        (prevLower === "pending" || prevLower === "requested");
+        acceptedStatuses.includes(newLower) &&
+        !acceptedStatuses.includes(prevLower) &&
+        !terminalStatuses.includes(prevLower);
 
       if (isAcceptAction && subscriptionLocked) {
         Alert.alert("Subscription required", "Activate subscription to continue receiving booking requests.");
@@ -199,18 +191,10 @@ export default function Appointments({ navigation }) {
       
       Alert.alert("Success", `Appointment ${newStatus}`);
 
-      // Trial credit: RPC only increments when DB status is 'trial'. Refetch fixes stale React state after PayFast/ITN.
+      // Strict counting is now done in DB trigger on appointment acceptance.
       if (isAcceptAction && barberId) {
-        const { error: rpcErr } = await supabase.rpc("increment_trial_booking_used", {
-          p_barber_id: barberId,
-        });
-        if (rpcErr) console.warn("increment_trial_booking_used:", rpcErr.message);
-        const { data: fresh } = await supabase
-          .from("barber_subscription_state")
-          .select("*")
-          .eq("barber_id", barberId)
-          .maybeSingle();
-        if (fresh) setSubscriptionState(fresh);
+        const fullState = await ensureBarberSubscriptionState(barberId);
+        if (fullState) setSubscriptionState(fullState);
       }
     } catch (error) {
       Alert.alert("Error", "Could not update status.");
@@ -444,24 +428,12 @@ export default function Appointments({ navigation }) {
             refreshing={loading}
             onRefresh={async () => {
               const { data: { user } } = await supabase.auth.getUser();
-              if (user) {
-                await loadSubscription();
-                await fetchBarberBookings(user.id);
-              }
+              if (user) fetchBarberBookings(user.id);
             }}
           />
         }
       >
         <Text style={styles.greeting}>{`${greeting}, ${shopName} 💈`}</Text>
-
-        {trialRemainingCount !== null && trialRemainingCount > 0 ? (
-          <View style={styles.trialBanner}>
-            <Icon name="gift-outline" size={16} color={colors.accent} />
-            <Text style={styles.trialBannerText}>
-              Free trial: {trialRemainingCount} accepted booking{trialRemainingCount === 1 ? "" : "s"} left (of 5)
-            </Text>
-          </View>
-        ) : null}
 
         <LinearGradient colors={["#0A0A0A", "#2a1f15"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.summaryCard}>
           <Text style={styles.summaryTitle}>Daily Overview</Text>
@@ -520,7 +492,7 @@ export default function Appointments({ navigation }) {
                     <Icon name="lock-closed-outline" size={18} color={colors.accent} />
                     <Text style={styles.lockedBannerText}>
                       {trialFinished
-                        ? "Trial finished. Pay R100 subscription to continue receiving booking requests."
+                        ? "Trial finished. Pay R70/month subscription to continue receiving booking requests."
                         : "Activate subscription to receive new booking requests."}
                     </Text>
                   </View>
@@ -599,19 +571,6 @@ const styles = StyleSheet.create({
   content: { padding: 16, paddingBottom: 34 },
   loadingWrap: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.background },
   greeting: { fontSize: 28, fontWeight: "800", color: "#C5A070", marginBottom: 14 },
-  trialBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    backgroundColor: "rgba(197,160,112,0.1)",
-    borderWidth: 1,
-    borderColor: "rgba(197,160,112,0.35)",
-    borderRadius: 14,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    marginBottom: 12,
-  },
-  trialBannerText: { color: "#F5F5F0", fontSize: 13, fontWeight: "800", flex: 1 },
   summaryCard: {
     borderRadius: 22,
     padding: 16,

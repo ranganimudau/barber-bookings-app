@@ -5,7 +5,7 @@ import { Calendar } from 'react-native-calendars';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { supabase } from '../../supabase/supabaseClient';
 import { colors } from '../../theme/clientTheme';
-import { ensureBarberSubscriptionState, getTrialRemaining, isSubscriptionEligible } from '../../utils/subscriptionState';
+import { ensureBarberSubscriptionState, isSubscriptionEligible } from '../../utils/subscriptionState';
 
 export default function Availability({ navigation }) {
   const today = new Date().toISOString().split('T')[0]; // Get current date in YYYY-MM-DD format
@@ -20,11 +20,7 @@ export default function Availability({ navigation }) {
 
   const subscriptionEligible = isSubscriptionEligible(subscriptionState);
   const subscriptionLocked = !subscriptionLoading && subscriptionState && !subscriptionEligible;
-  const showSubscriptionBanner =
-    !!subscriptionState &&
-    subscriptionLocked &&
-    ((subscriptionState.status === "trial" && getTrialRemaining(subscriptionState) <= 0) ||
-      (subscriptionState.status === "inactive" && subscriptionState.registration_fee_paid));
+  const showSubscriptionBanner = subscriptionLocked;
 
   useEffect(() => {
     const loadSubscription = async () => {
@@ -198,7 +194,7 @@ export default function Availability({ navigation }) {
         <View style={styles.subBanner}>
           <View style={styles.subBannerLeft}>
             <Icon name="lock-closed-outline" size={16} color={colors.accent} />
-            <Text style={styles.subBannerText}>Trial finished. Pay R100 to continue receiving bookings.</Text>
+            <Text style={styles.subBannerText}>Locked. Pay R70/month to continue receiving bookings.</Text>
           </View>
           <TouchableOpacity
             style={styles.subBannerBtn}

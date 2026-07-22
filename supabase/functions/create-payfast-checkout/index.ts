@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import md5 from "https://esm.sh/js-md5@0.8.3";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -6,15 +7,21 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-type Plan = "trial_then_sub" | "subscribe_now" | "subscription_only";
+type Plan = "trial" | "subscription";
 
-const PLAN_CONFIG: Record<Plan, { amount: number; itemName: string }> = {
-  trial_then_sub: { amount: 70, itemName: "Barber Registration Fee (5 free bookings plan)" },
-  subscribe_now: { amount: 130, itemName: "Barber Registration + Subscription" },
-  subscription_only: { amount: 100, itemName: "Barber Monthly Subscription" },
+const PLAN_CONFIG: Record<Plan, { amount: number; itemName: string; recurring: boolean }> = {
+  trial: { amount: 50, itemName: "Shop unlock — 20 day trial", recurring: false },
+  subscription: { amount: 70, itemName: "Barber Monthly Subscription", recurring: true },
 };
 
-const encode = (value: string | number) => encodeURIComponent(String(value));
+// PayFast's signature is generated PHP-style (urlencode): spaces become "+"
+// and a handful of extra characters get percent-encoded that
+// encodeURIComponent leaves alone. Must match exactly or PayFast rejects
+// with "Generated signature does not match submitted signature".
+const encode = (value: string | number) =>
+  encodeURIComponent(String(value))
+    .replace(/%20/g, "+")
+    .replace(/[!'()*]/g, (c) => "%" + c.charCodeAt(0).toString(16).toUpperCase());
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -53,7 +60,7 @@ Deno.serve(async (req: Request) => {
     const supabaseAdmin = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "");
 
     const body = await req.json().catch(() => ({}));
-    const plan = String(body?.plan || "trial_then_sub") as Plan;
+    const plan = String(body?.plan || "trial") as Plan;
     if (!PLAN_CONFIG[plan]) {
       return new Response(JSON.stringify({ error: "Invalid plan" }), {
         status: 400,
@@ -63,6 +70,7 @@ Deno.serve(async (req: Request) => {
 
     const payfastMerchantId = Deno.env.get("PAYFAST_MERCHANT_ID");
     const payfastMerchantKey = Deno.env.get("PAYFAST_MERCHANT_KEY");
+    const payfastPassphrase = Deno.env.get("PAYFAST_PASSPHRASE");
 
     // PayFast only accepts http(s) return/cancel URLs — not custom schemes like barberapp://
     const projectBase = (Deno.env.get("SUPABASE_URL") || Deno.env.get("APP_PUBLIC_URL") || "").replace(/\/$/, "");
@@ -92,13 +100,13 @@ Deno.serve(async (req: Request) => {
     }
 
     const paymentRef = `${plan}-${user.id}-${Date.now()}`;
-    const amount = PLAN_CONFIG[plan].amount;
+    const config = PLAN_CONFIG[plan];
 
     const { error: insertErr } = await supabaseAdmin.from("barber_subscription_payments").insert({
       payment_ref: paymentRef,
       barber_id: user.id,
       plan,
-      amount,
+      amount: config.amount,
       status: "pending",
     });
     if (insertErr) {
@@ -124,11 +132,34 @@ Deno.serve(async (req: Request) => {
       name_first: user.user_metadata?.full_name || "Barber",
       email_address: user.email || "barber@example.com",
       m_payment_id: paymentRef,
-      amount: amount.toFixed(2),
-      item_name: PLAN_CONFIG[plan].itemName,
+      amount: config.amount.toFixed(2),
+      item_name: config.itemName,
       custom_str1: plan,
       custom_str2: user.id,
     };
+
+    // R70/month recurring billing — PayFast auto-charges the card every
+    // cycle and fires payfast-itn again for each renewal. Requires
+    // recurring billing to be enabled on the merchant account; PayFast
+    // rejects the checkout with an error if it isn't.
+    if (config.recurring) {
+      values.subscription_type = "1";
+      values.billing_date = new Date().toISOString().slice(0, 10);
+      values.recurring_amount = config.amount.toFixed(2);
+      values.frequency = "3"; // monthly
+      values.cycles = "0"; // indefinite, until cancelled
+    }
+
+    // PayFast signature: MD5 of the parameter string (in the order added
+    // above), passphrase appended if configured. Required once a
+    // passphrase is set on the merchant account.
+    if (payfastPassphrase) {
+      const sigSource =
+        Object.entries(values)
+          .map(([k, v]) => `${k}=${encode(v)}`)
+          .join("&") + `&passphrase=${encode(payfastPassphrase)}`;
+      values.signature = md5(sigSource);
+    }
 
     const query = Object.entries(values)
       .map(([k, v]) => `${k}=${encode(v)}`)
@@ -138,7 +169,7 @@ Deno.serve(async (req: Request) => {
     const host = sandbox ? "https://sandbox.payfast.co.za/eng/process" : "https://www.payfast.co.za/eng/process";
     const paymentUrl = `${host}?${query}`;
 
-    return new Response(JSON.stringify({ payment_ref: paymentRef, payment_url: paymentUrl, amount, plan }), {
+    return new Response(JSON.stringify({ payment_ref: paymentRef, payment_url: paymentUrl, amount: config.amount, plan }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

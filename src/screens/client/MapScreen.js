@@ -72,8 +72,9 @@ export default function MapScreen({ navigation }) {
     // FIX: Include operating hours in selection
     const { data, error } = await supabase
       .from("barbers")
-      .select(`id, shop_name, address, latitude, longitude, phone_number, default_opening, default_closing`) 
+      .select(`id, shop_name, address, latitude, longitude, phone_number, default_opening, default_closing`)
       .eq('is_profile_complete', true)
+      .eq('shop_status', 'active')
       .not('latitude', 'is', null);
 
     if (!error) {

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
     ActivityIndicator, Alert, FlatList, Image, Linking,
     StyleSheet, Text, TouchableOpacity, View
@@ -6,13 +6,37 @@ import {
 import Icon from "react-native-vector-icons/Ionicons";
 import { supabase } from "../../supabase/supabaseClient";
 import { colors } from "../../theme/clientTheme";
+import { ensureBarberSubscriptionState, isSubscriptionEligible } from "../../utils/subscriptionState";
 
 export default function BookingRequests() {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [barberId, setBarberId] = useState(null);
+  const [subscriptionState, setSubscriptionState] = useState(null);
+  const [subscriptionLoading, setSubscriptionLoading] = useState(true);
+  const subscriptionEligible = useMemo(
+    () => isSubscriptionEligible(subscriptionState),
+    [subscriptionState]
+  );
+  const subscriptionLocked = !subscriptionLoading && !!subscriptionState && !subscriptionEligible;
 
   useEffect(() => {
     fetchRequests();
+  }, []);
+
+  useEffect(() => {
+    const loadSubscription = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        setBarberId(user.id);
+        const state = await ensureBarberSubscriptionState(user.id);
+        setSubscriptionState(state);
+      } finally {
+        setSubscriptionLoading(false);
+      }
+    };
+    loadSubscription();
   }, []);
 
   const fetchRequests = async () => {
@@ -56,14 +80,35 @@ export default function BookingRequests() {
     }
   };
 
-  const updateStatus = async (id, newStatus) => {
+  const updateStatus = async (id, newStatus, prevStatus) => {
     try {
+      const newLower = String(newStatus || "").toLowerCase();
+      const prevLower = String(prevStatus || "").toLowerCase();
+      const acceptedStatuses = ["confirmed", "accepted", "approved"];
+      const terminalStatuses = ["cancelled", "declined", "rejected", "completed", "done"];
+      const isAcceptAction =
+        acceptedStatuses.includes(newLower) &&
+        !acceptedStatuses.includes(prevLower) &&
+        !terminalStatuses.includes(prevLower);
+
+      if (isAcceptAction && subscriptionLocked) {
+        Alert.alert("Subscription required", "Choose and pay for a plan before accepting bookings.");
+        return;
+      }
+
       const { error } = await supabase
         .from("appointments")
         .update({ status: newStatus })
         .eq("id", id);
 
       if (error) throw error;
+
+      // Strict counting is now done in DB trigger on appointment acceptance.
+      if (isAcceptAction && barberId) {
+        const fullState = await ensureBarberSubscriptionState(barberId);
+        if (fullState) setSubscriptionState(fullState);
+      }
+
       Alert.alert("Success", `Appointment ${newStatus}`);
       fetchRequests();
     } catch (error) {
@@ -127,10 +172,10 @@ export default function BookingRequests() {
 
         {item.status === 'pending' && (
           <View style={styles.actionRow}>
-            <TouchableOpacity style={styles.acceptBtn} onPress={() => updateStatus(item.id, 'confirmed')}>
+            <TouchableOpacity style={styles.acceptBtn} onPress={() => updateStatus(item.id, 'confirmed', item.status)}>
               <Text style={styles.btnText}>Accept</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.declineBtn} onPress={() => updateStatus(item.id, 'declined')}>
+            <TouchableOpacity style={styles.declineBtn} onPress={() => updateStatus(item.id, 'declined', item.status)}>
               <Text style={styles.declineText}>Decline</Text>
             </TouchableOpacity>
           </View>

@@ -1,95 +1,96 @@
 import { useFocusEffect } from '@react-navigation/native';
-import React, { useCallback, useState } from 'react';
+import { LinearGradient } from 'expo-linear-gradient';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
-    FlatList,
     Image,
-    Linking,
     RefreshControl,
+    ScrollView,
     StyleSheet,
     Text,
     TouchableOpacity,
-    View
+    View,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { supabase } from '../../supabase/supabaseClient';
-import { colors } from '../../theme/clientTheme';
-import { ensureBarberSubscriptionState, getTrialRemaining, isSubscriptionEligible } from '../../utils/subscriptionState';
+import { colors, shadows } from '../../theme/barberTheme';
+
+const greetingForNow = () => {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 18) return 'Good afternoon';
+  return 'Good evening';
+};
+import {
+    ensureBarberSubscriptionState,
+    getSubscriptionLabel,
+    isSubscriptionEligible,
+} from '../../utils/subscriptionState';
+
+const ACTIVE_STATUSES = ['confirmed', 'accepted', 'approved', 'completed', 'done'];
+const PENDING_STATUSES = ['pending', 'requested'];
+
+const todayKey = () => new Date().toISOString().slice(0, 10);
+const formatRand = (amount) => `R${Number(amount || 0).toFixed(2)}`;
+const formatTime = (time) => (time || '').toString().substring(0, 5);
 
 export default function BarberDashboard({ navigation }) {
-  const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [barberName, setBarberName] = useState('');
   const [barberAvatar, setBarberAvatar] = useState(null);
   const [subscriptionState, setSubscriptionState] = useState(null);
+  const [appointments, setAppointments] = useState([]);
 
-  // Fetch bookings and related client data
-  const fetchBookings = useCallback(async () => {
+  const load = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("No user logged in");
+      if (!user) throw new Error('No user logged in');
 
       try {
         const state = await ensureBarberSubscriptionState(user.id);
         setSubscriptionState(state);
       } catch (e) {
-        console.warn("Subscription state load failed:", e?.message);
+        console.warn('Subscription state load failed:', e?.message);
       }
 
-      // Fetch barber's name for the header
       const { data: barberProfile } = await supabase
         .from('barbers')
         .select('shop_name, avatar_url')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
 
       if (barberProfile) {
-        setBarberName(barberProfile.shop_name);
-        // Add a timestamp to the avatar URL to prevent caching issues on focus
-        if (barberProfile.avatar_url) {
-          const avatar = barberProfile.avatar_url;
-          setBarberAvatar(
-            avatar.startsWith('data:image/')
+        setBarberName(barberProfile.shop_name || '');
+        const avatar = barberProfile.avatar_url;
+        setBarberAvatar(
+          avatar
+            ? avatar.startsWith('data:image/')
               ? avatar
-              : `${avatar}${avatar.includes('?') ? '&' : '?'}t=${new Date().getTime()}`
-          );
-        } else {
-          setBarberAvatar(null);
-        }
+              : `${avatar}${avatar.includes('?') ? '&' : '?'}t=${Date.now()}`
+            : null
+        );
       }
 
-      // --- KEY CHANGE: Fetch Bookings with Client Details ---
-      // This query joins the 'bookings' with the 'profiles' table.
-      // It assumes 'client_id' in 'bookings' is the foreign key to 'profiles'.
-      // 'client:client_id(...)' creates a nested object named 'client' with the selected fields.
-      const { data: bookingsData, error: bookingsError } = await supabase
-        .from('bookings')
+      const { data, error } = await supabase
+        .from('appointments')
         .select(`
           id,
-          booking_date,
-          booking_time,
+          appointment_date,
+          appointment_time,
           status,
-          client:client_id ( full_name, phone_number, avatar_url )
+          service_name,
+          price,
+          profiles!appointments_client_id_fkey (full_name, avatar_url)
         `)
         .eq('barber_id', user.id)
-        .order('booking_date', { ascending: true });
+        .order('appointment_time', { ascending: true });
 
-      if (bookingsError) {
-        throw bookingsError;
-      }
-      
-      // The result for each booking will now look like:
-      // { id: 1, ..., client: { full_name: 'John Doe', phone_number: '0821234567' } }
-      if (bookingsData) {
-        // --- DEBUG: Log the data to see what Supabase is returning ---
-        console.log("Fetched Bookings Data:", JSON.stringify(bookingsData, null, 2));
-        setBookings(bookingsData);
-      }
-
+      if (error) throw error;
+      setAppointments(data || []);
     } catch (error) {
-      Alert.alert('Error fetching data', error.message);
+      Alert.alert('Error fetching dashboard', error.message);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -98,306 +99,265 @@ export default function BarberDashboard({ navigation }) {
 
   useFocusEffect(
     useCallback(() => {
-      fetchBookings();
-    }, [fetchBookings])
+      load();
+    }, [load])
   );
+
   const onRefresh = () => {
     setRefreshing(true);
-    fetchBookings();
+    load();
   };
 
-  // Function to handle calling the client
-  const handleCallClient = (phoneNumber) => {
-    if (!phoneNumber) {
-      Alert.alert("No Phone Number", "This client has not provided a phone number.");
-      return;
-    }
-    // This will open the phone's dialer
-    Linking.openURL(`tel:${phoneNumber}`);
-  };
+  const stats = useMemo(() => {
+    const key = todayKey();
+    const todays = appointments.filter((a) => a.appointment_date === key);
+    const todaysConfirmed = todays.filter((a) => ACTIVE_STATUSES.includes((a.status || '').toLowerCase()));
+    const todaysPending = todays.filter((a) => PENDING_STATUSES.includes((a.status || '').toLowerCase()));
+    const allPending = appointments.filter((a) => PENDING_STATUSES.includes((a.status || '').toLowerCase()));
+    const todaysRevenue = todaysConfirmed.reduce((sum, a) => sum + Number(a.price || 0), 0);
 
-  const updateBookingStatus = async (bookingId, newStatus) => {
-    // Optimistically update the UI for a faster user experience
-    const originalBookings = bookings;
-    setBookings(currentBookings =>
-      currentBookings.map(booking =>
-        booking.id === bookingId ? { ...booking, status: newStatus } : booking
-      )
-    );
-
-    const { error } = await supabase
-      .from('bookings')
-      .update({ status: newStatus })
-      .eq('id', bookingId);
-
-    if (error) {
-      Alert.alert('Update Error', error.message);
-      setBookings(originalBookings); // Revert on error
-    }
-  };
-
-  // --- UI CHANGE: Render the Client's Name and Phone ---
-  const renderBookingItem = ({ item }) => {
-    const clientName = item.client?.full_name || 'Client Name Unavailable';
-    const clientPhone = item.client?.phone_number;
-    const clientAvatar = item.client?.avatar_url;
-    const bookingDate = new Date(item.booking_date).toLocaleDateString('en-ZA', {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric'
-    });
-
-    return (
-      <View style={styles.bookingCard}>
-        <View style={styles.cardHeader}>
-          {clientAvatar ? (
-            <Image source={{ uri: clientAvatar }} style={styles.avatarImage} />
-          ) : (
-            <Icon name="person-circle" size={40} color={colors.textMuted} style={styles.avatarIcon} />
-          )}
-          <View style={styles.headerText}>
-            <Text style={styles.clientName}>{clientName}</Text>
-            <Text style={styles.bookingDate}>
-              {bookingDate} at {item.booking_time}
-            </Text>
-          </View>
-        </View>
-        <View style={styles.cardBody}>
-          <Text style={styles.status}>Status: {item.status}</Text>
-          {clientPhone ? (
-            <TouchableOpacity style={styles.callButton} onPress={() => handleCallClient(clientPhone)}>
-              <Icon name="call" size={16} color="#fff" />
-              <Text style={styles.callButtonText}>{clientPhone}</Text>
-            </TouchableOpacity>
-          ) : (
-            <Text style={styles.noPhoneText}>No phone number</Text>
-          )}
-        </View>
-      </View>
-    );
-  };
-
-  if (loading) return <ActivityIndicator style={[styles.centered, { backgroundColor: colors.background }]} size="large" color={colors.accent} />;
+    return {
+      todayCount: todays.length,
+      todayConfirmedCount: todaysConfirmed.length,
+      todayPendingCount: todaysPending.length,
+      todayRevenue: todaysRevenue,
+      pendingCount: allPending.length,
+      todaysSchedule: todays,
+    };
+  }, [appointments]);
 
   const subscriptionEligible = isSubscriptionEligible(subscriptionState);
-  const showSubscriptionBanner =
-    !!subscriptionState &&
-    !subscriptionEligible &&
-    ((subscriptionState.status === "trial" && getTrialRemaining(subscriptionState) <= 0) ||
-      (subscriptionState.status === "inactive" && subscriptionState.registration_fee_paid));
+  const showSubscriptionBanner = !!subscriptionState && !subscriptionEligible;
+  const statusLabel = subscriptionState ? getSubscriptionLabel(subscriptionState) : null;
+
+  const statusBadgeStyle = (status) => {
+    const s = (status || '').toLowerCase();
+    if (ACTIVE_STATUSES.includes(s)) return [styles.badge, styles.badgeSuccess];
+    if (PENDING_STATUSES.includes(s)) return [styles.badge, styles.badgePending];
+    return [styles.badge, styles.badgeMuted];
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.accent} />
+      </View>
+    );
+  }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.headerContainer}>
-        {barberAvatar && <Image source={{ uri: barberAvatar }} style={styles.headerAvatar} />}
-        <Text style={styles.header}>Welcome, {barberName || 'Barber'}</Text>
-      </View>
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={styles.content}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />}
+    >
+      <LinearGradient
+        colors={[colors.accent, colors.accentDark]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.hero}
+      >
+        <Icon name="sparkles" size={130} color="rgba(255,255,255,0.14)" style={styles.heroWatermark} />
+        <View style={styles.heroRow}>
+          {barberAvatar ? (
+            <Image source={{ uri: barberAvatar }} style={styles.heroAvatar} />
+          ) : (
+            <View style={styles.heroAvatarFallback}>
+              <Icon name="storefront-outline" size={24} color={colors.accentText} />
+            </View>
+          )}
+          <View style={styles.heroTextWrap}>
+            <Text style={styles.heroGreeting}>{greetingForNow()}</Text>
+            <Text style={styles.heroShopName} numberOfLines={1}>{barberName || 'Your Shop'}</Text>
+          </View>
+        </View>
+      </LinearGradient>
 
       {showSubscriptionBanner ? (
-        <View style={styles.subscriptionBanner}>
-          <View style={styles.subscriptionBannerLeft}>
+        <View style={styles.subBanner}>
+          <View style={styles.subBannerLeft}>
             <Icon name="lock-closed-outline" size={16} color={colors.accent} />
-            <Text style={styles.subscriptionBannerText}>Trial finished. Pay R100 to continue receiving bookings.</Text>
+            <Text style={styles.subBannerText}>{statusLabel || 'Locked. Pay R70/month to continue receiving bookings.'}</Text>
           </View>
           <TouchableOpacity
-            style={styles.subscriptionBannerBtn}
-            onPress={() => navigation.navigate("SubscriptionPaywall")}
+            style={styles.subBannerBtn}
+            onPress={() => navigation.navigate('SubscriptionPaywall')}
             activeOpacity={0.88}
           >
-            <Text style={styles.subscriptionBannerBtnText}>Pay now</Text>
+            <Text style={styles.subBannerBtnText}>Pay now</Text>
           </TouchableOpacity>
         </View>
       ) : null}
 
-      <Text style={styles.subHeader}>Your Appointments</Text>
-      <FlatList
-        data={bookings}
-        renderItem={renderBookingItem}
-        keyExtractor={(item) => item.id.toString()}
-        contentContainerStyle={{ paddingBottom: 20 }}
-        ListEmptyComponent={<Text style={styles.emptyText}>You have no upcoming bookings.</Text>}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.accent]} />
-        }
-      />
-    </View>
+      <View style={styles.statsRow}>
+        <View style={styles.statCard}>
+          <View style={styles.statIconBadge}>
+            <Icon name="calendar-outline" size={16} color={colors.accent} />
+          </View>
+          <Text style={styles.statValue}>{stats.todayCount}</Text>
+          <Text style={styles.statLabel}>Today</Text>
+          <Text style={styles.statHint}>{stats.todayPendingCount} pending · {stats.todayConfirmedCount} confirmed</Text>
+        </View>
+        <View style={styles.statCard}>
+          <View style={styles.statIconBadge}>
+            <Icon name="cash-outline" size={16} color={colors.accent} />
+          </View>
+          <Text style={styles.statValue}>{formatRand(stats.todayRevenue)}</Text>
+          <Text style={styles.statLabel}>Revenue</Text>
+          <Text style={styles.statHint}>from today's confirmed jobs</Text>
+        </View>
+        <View style={styles.statCard}>
+          <View style={styles.statIconBadge}>
+            <Icon name="notifications-outline" size={16} color={colors.accent} />
+          </View>
+          <Text style={styles.statValue}>{stats.pendingCount}</Text>
+          <Text style={styles.statLabel}>Requests</Text>
+          <Text style={styles.statHint}>awaiting your response</Text>
+        </View>
+      </View>
+
+      <View style={styles.quickActionsRow}>
+        <TouchableOpacity style={styles.quickAction} onPress={() => navigation.navigate('Bookings')} activeOpacity={0.85}>
+          <View style={styles.quickActionIconBadge}>
+            <Icon name="list-outline" size={18} color={colors.accent} />
+          </View>
+          <Text style={styles.quickActionText}>Bookings</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.quickAction} onPress={() => navigation.navigate('Availability')} activeOpacity={0.85}>
+          <View style={styles.quickActionIconBadge}>
+            <Icon name="time-outline" size={18} color={colors.accent} />
+          </View>
+          <Text style={styles.quickActionText}>Availability</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.quickAction} onPress={() => navigation.navigate('Earnings')} activeOpacity={0.85}>
+          <View style={styles.quickActionIconBadge}>
+            <Icon name="stats-chart-outline" size={18} color={colors.accent} />
+          </View>
+          <Text style={styles.quickActionText}>Earnings</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.quickAction} onPress={() => navigation.navigate('SettingsGroup')} activeOpacity={0.85}>
+          <View style={styles.quickActionIconBadge}>
+            <Icon name="settings-outline" size={18} color={colors.accent} />
+          </View>
+          <Text style={styles.quickActionText}>Settings</Text>
+        </TouchableOpacity>
+      </View>
+
+      <Text style={styles.sectionTitle}>Today's Schedule</Text>
+      {stats.todaysSchedule.length === 0 ? (
+        <View style={styles.emptyCard}>
+          <Icon name="cafe-outline" size={22} color={colors.textMuted} />
+          <Text style={styles.emptyText}>No bookings today. Enjoy the downtime.</Text>
+        </View>
+      ) : (
+        stats.todaysSchedule.map((item) => (
+          <View key={item.id} style={styles.scheduleCard}>
+            {item.profiles?.avatar_url ? (
+              <Image source={{ uri: item.profiles.avatar_url }} style={styles.scheduleAvatar} />
+            ) : (
+              <View style={styles.scheduleAvatarFallback}>
+                <Icon name="person" size={16} color={colors.textMuted} />
+              </View>
+            )}
+            <View style={styles.scheduleInfo}>
+              <Text style={styles.scheduleName} numberOfLines={1}>{item.profiles?.full_name || 'Client'}</Text>
+              <Text style={styles.scheduleService} numberOfLines={1}>
+                {item.service_name || 'Service'} · {formatTime(item.appointment_time)}
+              </Text>
+            </View>
+            <View style={styles.scheduleRight}>
+              <Text style={styles.schedulePrice}>{formatRand(item.price)}</Text>
+              <View style={statusBadgeStyle(item.status)}>
+                <Text style={styles.badgeText}>{item.status || 'pending'}</Text>
+              </View>
+            </View>
+          </View>
+        ))
+      )}
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-    paddingHorizontal: 20,
-    paddingTop: 60,
+  screen: { flex: 1, backgroundColor: colors.background },
+  content: { padding: 18, paddingTop: 56, paddingBottom: 40 },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+
+  hero: {
+    borderRadius: 22, padding: 20, marginBottom: 18, overflow: 'hidden',
+    ...shadows.floating,
   },
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+  heroWatermark: { position: 'absolute', top: -30, right: -20, transform: [{ rotate: '18deg' }] },
+  heroRow: { flexDirection: 'row', alignItems: 'center' },
+  heroAvatar: { width: 56, height: 56, borderRadius: 28, marginRight: 14, borderWidth: 2, borderColor: 'rgba(255,255,255,0.6)' },
+  heroAvatarFallback: {
+    width: 56, height: 56, borderRadius: 28, marginRight: 14,
+    backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: 'rgba(255,255,255,0.6)',
   },
-  headerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 5,
+  heroTextWrap: { flex: 1 },
+  heroGreeting: { fontSize: 13, color: 'rgba(255,255,255,0.85)', fontWeight: '700' },
+  heroShopName: { fontSize: 23, color: colors.accentText, fontWeight: '800', marginTop: 2 },
+
+  subBanner: {
+    marginBottom: 16, borderRadius: 14, borderWidth: 1, borderColor: colors.border,
+    backgroundColor: colors.accentSoft, padding: 12, flexDirection: 'row', alignItems: 'center',
   },
-  headerAvatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    marginRight: 15,
+  subBannerLeft: { flex: 1, flexDirection: 'row', alignItems: 'center', marginRight: 8 },
+  subBannerText: { color: colors.text, fontSize: 12, fontWeight: '700', lineHeight: 16, marginLeft: 8, flex: 1 },
+  subBannerBtn: { borderRadius: 10, backgroundColor: colors.accent, paddingVertical: 8, paddingHorizontal: 12 },
+  subBannerBtnText: { color: colors.accentText, fontSize: 12, fontWeight: '900' },
+
+  statsRow: { flexDirection: 'row', gap: 10, marginBottom: 18 },
+  statCard: {
+    flex: 1, backgroundColor: colors.surface, borderRadius: 16, padding: 12,
+    borderWidth: 1, borderColor: colors.border, ...shadows.card,
   },
-  header: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: colors.accent,
-    flex: 1,
+  statIconBadge: {
+    width: 30, height: 30, borderRadius: 15, backgroundColor: colors.accentSoft,
+    alignItems: 'center', justifyContent: 'center',
   },
-  subHeader: {
-    fontSize: 18,
-    color: colors.textMuted,
-    marginBottom: 20,
+  statValue: { fontSize: 18, fontWeight: '900', color: colors.text, marginTop: 8 },
+  statLabel: { fontSize: 12, fontWeight: '700', color: colors.textSecondary, marginTop: 2 },
+  statHint: { fontSize: 10, color: colors.textMuted, marginTop: 4, lineHeight: 13 },
+
+  quickActionsRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 22 },
+  quickAction: {
+    alignItems: 'center', justifyContent: 'center', width: '23%',
+    backgroundColor: colors.surface, borderRadius: 14, paddingVertical: 12,
+    borderWidth: 1, borderColor: colors.border, ...shadows.card,
   },
-  subscriptionBanner: {
-    marginBottom: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(197,160,112,0.35)',
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    padding: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
+  quickActionIconBadge: {
+    width: 34, height: 34, borderRadius: 17, backgroundColor: colors.accentSoft,
+    alignItems: 'center', justifyContent: 'center',
   },
-  subscriptionBannerLeft: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: 8,
+  quickActionText: { marginTop: 6, fontSize: 11, fontWeight: '700', color: colors.textSecondary },
+
+  sectionTitle: { fontSize: 16, fontWeight: '800', color: colors.text, marginBottom: 10 },
+  emptyCard: {
+    backgroundColor: colors.surface, borderRadius: 16, padding: 24, alignItems: 'center',
+    borderWidth: 1, borderColor: colors.border,
   },
-  subscriptionBannerText: {
-    color: '#F5F5F0',
-    fontSize: 12,
-    fontWeight: '800',
-    lineHeight: 16,
-    marginLeft: 8,
-    flex: 1,
+  emptyText: { color: colors.textMuted, marginTop: 8, fontSize: 13, fontWeight: '600' },
+
+  scheduleCard: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface,
+    borderRadius: 14, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: colors.border,
   },
-  subscriptionBannerBtn: {
-    borderRadius: 10,
-    backgroundColor: colors.accent,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
+  scheduleAvatar: { width: 40, height: 40, borderRadius: 20, marginRight: 12 },
+  scheduleAvatarFallback: {
+    width: 40, height: 40, borderRadius: 20, marginRight: 12,
+    backgroundColor: colors.surfaceMuted, alignItems: 'center', justifyContent: 'center',
   },
-  subscriptionBannerBtnText: {
-    color: '#0A0A0A',
-    fontSize: 11,
-    fontWeight: '900',
-  },
-  bookingCard: {
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    borderRadius: 12,
-    padding: 15,
-    marginBottom: 15,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 1,
-    borderWidth: 1,
-    borderColor: 'rgba(197,160,112,0.25)',
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.08)',
-    paddingBottom: 10,
-    marginBottom: 10,
-  },
-  avatarIcon: {
-    marginRight: 12,
-  },
-  avatarImage: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginRight: 12,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-  },
-  headerText: {
-    flex: 1,
-  },
-  clientName: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#F5F5F0',
-  },
-  bookingDate: {
-    fontSize: 14,
-    color: colors.textMuted,
-  },
-  cardBody: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  status: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#F5F5F0',
-    textTransform: 'capitalize',
-  },
-  callButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#0A0A0A',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(197,160,112,0.35)',
-  },
-  callButtonText: {
-    color: '#fff',
-    marginLeft: 6,
-    fontWeight: 'bold',
-  },
-  noPhoneText: {
-    fontSize: 14,
-    color: colors.textMuted,
-    fontStyle: 'italic',
-  },
-  emptyText: {
-    textAlign: 'center',
-    marginTop: 50,
-    fontSize: 16,
-    color: colors.textMuted,
-  },
-  cardActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginTop: 15,
-    paddingTop: 15,
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    marginLeft: 10,
-  },
-  actionButtonText: {
-    color: '#fff',
-    marginLeft: 6,
-    fontWeight: 'bold',
-    fontSize: 12,
-  },
-  completeButton: { backgroundColor: '#28a745' /* Green */ },
-  cancelButton: { backgroundColor: '#dc3545' /* Red */ },
+  scheduleInfo: { flex: 1, marginRight: 8 },
+  scheduleName: { fontSize: 14, fontWeight: '800', color: colors.text },
+  scheduleService: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
+  scheduleRight: { alignItems: 'flex-end' },
+  schedulePrice: { fontSize: 14, fontWeight: '900', color: colors.text, marginBottom: 4 },
+
+  badge: { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
+  badgeSuccess: { backgroundColor: colors.successBg },
+  badgePending: { backgroundColor: colors.pendingBg },
+  badgeMuted: { backgroundColor: colors.surfaceMuted },
+  badgeText: { fontSize: 10, fontWeight: '800', color: colors.textSecondary, textTransform: 'capitalize' },
 });

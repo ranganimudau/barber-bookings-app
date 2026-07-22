@@ -6,6 +6,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 // Import all your barber screens
 import Appointments from '../screens/barber/Appointments';
 import Availability from '../screens/barber/Availability';
+import BarberDashboard from '../screens/barber/BarberDashboard';
 import BarberEarnings from '../screens/barber/BarberEarnings';
 import BarberSettings from '../screens/barber/BarberSettings';
 import EditProfile from '../screens/barber/EditProfile';
@@ -42,10 +43,13 @@ function SettingsStack() {
 export default function BarberStack() {
   return (
     <Tab.Navigator
+      initialRouteName="Dashboard"
       screenOptions={({ route }) => ({
         tabBarIcon: ({ focused, color, size }) => {
           let iconName;
-          if (route.name === 'Bookings') {
+          if (route.name === 'Dashboard') {
+            iconName = focused ? 'home' : 'home-outline';
+          } else if (route.name === 'Bookings') {
             iconName = focused ? 'calendar' : 'calendar-outline';
           } else if (route.name === 'Earnings') {
             iconName = focused ? 'cash' : 'cash-outline';
@@ -75,6 +79,7 @@ export default function BarberStack() {
         tabBarInactiveTintColor: '#757575',
       })}
     >
+      <Tab.Screen name="Dashboard" component={BarberDashboard} />
       <Tab.Screen name="Bookings" component={Appointments} />
       <Tab.Screen name="Earnings" component={BarberEarnings} />
       <Tab.Screen

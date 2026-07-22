@@ -1,12 +1,14 @@
 /**
- * PayFast requires https return/cancel URLs. Opens the installed app via deep link.
+ * PayFast / Paystack callback: https return URL that deep-links back into the app.
  *
- * Android: Chrome blocks many automatic custom-scheme navigations. We use an Intent URL
- * (see https://developer.chrome.com/docs/android/intents) + a plain scheme link as fallback.
+ * Android: Intent URL (https://developer.chrome.com/docs/android/intents) + barberapp:// fallback.
+ * Package must match `expo.android.package` / Play Store app id exactly.
+ *
+ * Optional secret: ANDROID_APP_PACKAGE (e.g. com.rangani.barberapp) if it ever differs from default.
  *
  * GET ?next=success | cancel
  */
-const ANDROID_PACKAGE = "com.rangani.barberapp";
+const DEFAULT_ANDROID_PACKAGE = "com.rangani.barberapp";
 
 Deno.serve(async (req: Request) => {
   if (req.method !== "GET") {
@@ -16,11 +18,13 @@ Deno.serve(async (req: Request) => {
   const url = new URL(req.url);
   const next = (url.searchParams.get("next") || "success").toLowerCase();
 
+  const androidPackage = (Deno.env.get("ANDROID_APP_PACKAGE") || DEFAULT_ANDROID_PACKAGE).trim();
+
   const host = next === "cancel" ? "subscription-cancelled" : "subscription-success";
   const deepLink = `barberapp://${host}`;
   // Intent host must match barberapp://HOST — browser resolves intent://HOST#Intent;scheme=barberapp;...
   // Omit S.browser_fallback_url — it must be https; without it the page stays open with manual buttons.
-  const intentUrl = `intent://${host}#Intent;scheme=barberapp;package=${ANDROID_PACKAGE};end`;
+  const intentUrl = `intent://${host}#Intent;scheme=barberapp;package=${androidPackage};end`;
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -77,7 +81,8 @@ Deno.serve(async (req: Request) => {
     status: 200,
     headers: {
       "Content-Type": "text/html; charset=utf-8",
-      "Cache-Control": "no-store",
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+      Pragma: "no-cache",
     },
   });
 });

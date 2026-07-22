@@ -6,7 +6,6 @@ import React, { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Platform, View } from "react-native";
 import Constants from "expo-constants";
 import * as Device from "expo-device";
-import * as Notifications from "expo-notifications";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import AuthStack from "./src/navigation/AuthStack";
@@ -17,23 +16,15 @@ import ResetPassword, {
 } from "./src/screens/auth/ResetPassword";
 import ProfileSetup from "./src/screens/barber/ProfileSetup";
 import SubscriptionPaywall from "./src/screens/barber/SubscriptionPaywall";
-import RegistrationFeePaywall from "./src/screens/barber/RegistrationFeePaywall";
 import { ClientThemeProvider } from "./src/theme/ClientThemeMode";
 import { supabase } from "./src/supabase/supabaseClient";
+import { isExpoGoAndroid } from "./src/utils/isExpoGoAndroid";
 import {
   parseSupabaseAuthParams,
   shouldOpenPasswordRecovery,
 } from "./src/utils/parseSupabaseAuthUrl";
 
 const Stack = createStackNavigator();
-
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
 
 export default function App() {
   const [loading, setLoading] = useState(true);
@@ -42,10 +33,124 @@ export default function App() {
   const [isSetupComplete, setIsSetupComplete] = useState(false);
   const [passwordRecovery, setPasswordRecovery] = useState(false);
   const passwordRecoveryRef = useRef(false);
+  const notificationsModRef = useRef(null);
 
   useEffect(() => {
-    configureAndroidNotificationChannel();
-    requestNotificationPermission();
+    let cancelled = false;
+    let authSubscription = null;
+    let linkingSubscription = null;
+
+    const configureAndroidNotificationChannel = async (Notifications) => {
+      try {
+        if (Platform.OS !== "android") return;
+        await Notifications.setNotificationChannelAsync("default", {
+          name: "default",
+          importance: Notifications.AndroidImportance.HIGH,
+          vibrationPattern: [0, 250, 250, 250],
+          lightColor: "#2563EB",
+        });
+      } catch (error) {
+        console.log("Notification channel setup failed:", error?.message);
+      }
+    };
+
+    const requestNotificationPermission = async (Notifications) => {
+      try {
+        const { status } = await Notifications.getPermissionsAsync();
+        if (status !== "granted") {
+          await Notifications.requestPermissionsAsync();
+        }
+      } catch (error) {
+        console.log("Notification permission failed:", error?.message);
+      }
+    };
+
+    const registerExpoPushToken = async (userId) => {
+      const Notifications = notificationsModRef.current;
+      if (!Notifications) return;
+      try {
+        if (!userId) {
+          console.warn("[Push] Skipped: no user id (not signed in).");
+          return;
+        }
+        if (!Device.isDevice) {
+          console.warn(
+            "[Push] Skipped: not a physical device (simulator / emulator). Use a real phone for push tokens."
+          );
+          return;
+        }
+        if (isExpoGoAndroid()) {
+          console.warn("[Push] Skipped: Android Expo Go cannot register remote push tokens.");
+          return;
+        }
+
+        const { status: existingStatus } = await Notifications.getPermissionsAsync();
+        let finalStatus = existingStatus;
+        if (existingStatus !== "granted") {
+          const { status } = await Notifications.requestPermissionsAsync();
+          finalStatus = status;
+        }
+        if (finalStatus !== "granted") {
+          console.warn("[Push] Skipped: notification permission not granted.");
+          return;
+        }
+
+        const projectId =
+          Constants?.expoConfig?.extra?.eas?.projectId ||
+          Constants?.easConfig?.projectId;
+        if (!projectId) {
+          console.warn(
+            "[Push] Skipped: missing EAS projectId in app config. Rebuild dev client after eas init / app.json extra.eas.projectId."
+          );
+          return;
+        }
+
+        const tokenResponse = await Notifications.getExpoPushTokenAsync({ projectId });
+        const expoPushToken = tokenResponse?.data;
+        if (!expoPushToken) {
+          console.warn("[Push] Skipped: getExpoPushTokenAsync returned no token.", tokenResponse);
+          return;
+        }
+
+        const { error: upsertError } = await supabase.from("user_push_tokens").upsert(
+          {
+            user_id: userId,
+            token: expoPushToken,
+            device_type: Device.osName || "unknown",
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "user_id,token" }
+        );
+
+        if (upsertError) {
+          console.warn("[Push] Supabase upsert failed:", upsertError.message, upsertError);
+          return;
+        }
+
+        console.log("[Push] Token saved for user", userId, "→", expoPushToken.slice(0, 28) + "…");
+      } catch (error) {
+        console.warn("[Push] registerExpoPushToken error:", error?.message, error);
+      }
+    };
+
+    const fetchUserData = async (userId) => {
+      try {
+        const { data: profile } = await supabase.from("profiles").select("role").eq("id", userId).single();
+        if (profile) {
+          setRole(profile.role);
+          if (profile.role === "barber") {
+            const { data: barber } = await supabase
+              .from("barbers")
+              .select("is_profile_complete")
+              .eq("id", userId)
+              .single();
+            setIsSetupComplete(barber?.is_profile_complete || false);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching user data:", error.message);
+      }
+    };
 
     const handleAuthDeepLink = async (url) => {
       if (!url) return;
@@ -88,52 +193,88 @@ export default function App() {
       }
     };
 
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === "PASSWORD_RECOVERY" && session) {
-        passwordRecoveryRef.current = true;
-        setPasswordRecovery(true);
-        setUser(session.user);
-        setLoading(false);
-        return;
+    (async () => {
+      if (!isExpoGoAndroid()) {
+        try {
+          const Notifications = await import("expo-notifications");
+          if (cancelled) return;
+          notificationsModRef.current = Notifications;
+          Notifications.setNotificationHandler({
+            handleNotification: async () => ({
+              shouldShowAlert: true,
+              shouldPlaySound: true,
+              shouldSetBadge: false,
+            }),
+          });
+          await configureAndroidNotificationChannel(Notifications);
+          await requestNotificationPermission(Notifications);
+        } catch (e) {
+          console.warn("[Notifications] init failed:", e?.message);
+        }
+      } else {
+        console.warn("[Notifications] Skipped on Android Expo Go (SDK 53+). Use a dev build for push.");
       }
 
-      if (event === "SIGNED_OUT") {
-        passwordRecoveryRef.current = false;
-        setPasswordRecovery(false);
-        setUser(null);
-        setRole(null);
-        setIsSetupComplete(false);
-        setLoading(false);
-        return;
-      }
+      if (cancelled) return;
 
-      if (session) {
-        if (passwordRecoveryRef.current) {
+      const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+        if (event === "PASSWORD_RECOVERY" && session) {
+          passwordRecoveryRef.current = true;
+          setPasswordRecovery(true);
           setUser(session.user);
           setLoading(false);
           return;
         }
-        setUser(session.user);
-        registerExpoPushToken(session.user.id);
-        await fetchUserData(session.user.id);
-      } else {
-        setUser(null);
-        setRole(null);
-        setIsSetupComplete(false);
-      }
-      setLoading(false);
-    });
 
-    (async () => {
+        if (event === "SIGNED_OUT") {
+          passwordRecoveryRef.current = false;
+          setPasswordRecovery(false);
+          setUser(null);
+          setRole(null);
+          setIsSetupComplete(false);
+          setLoading(false);
+          return;
+        }
+
+        if (session) {
+          if (passwordRecoveryRef.current) {
+            setUser(session.user);
+            setLoading(false);
+            return;
+          }
+          setUser(session.user);
+          registerExpoPushToken(session.user.id);
+          await fetchUserData(session.user.id);
+        } else {
+          setUser(null);
+          setRole(null);
+          setIsSetupComplete(false);
+        }
+        setLoading(false);
+      });
+
+      authSubscription = authListener;
+
       try {
         const initialUrl = await Linking.getInitialURL();
         if (initialUrl) await handleAuthDeepLink(initialUrl);
       } catch (e) {
         console.warn("Initial URL handling failed:", e?.message);
       }
+      if (cancelled) {
+        authSubscription?.subscription?.unsubscribe();
+        authSubscription = null;
+        return;
+      }
+
       const {
         data: { session },
       } = await supabase.auth.getSession();
+      if (cancelled) {
+        authSubscription?.subscription?.unsubscribe();
+        authSubscription = null;
+        return;
+      }
       if (session) {
         if (passwordRecoveryRef.current) {
           setUser(session.user);
@@ -144,130 +285,31 @@ export default function App() {
         }
       }
       setLoading(false);
+
+      if (cancelled) {
+        authSubscription?.subscription?.unsubscribe();
+        authSubscription = null;
+        return;
+      }
+
+      linkingSubscription = Linking.addEventListener("url", ({ url }) => {
+        handleAuthDeepLink(url);
+      });
     })();
 
-    const sub = Linking.addEventListener("url", ({ url }) => {
-      handleAuthDeepLink(url);
-    });
-
     return () => {
-      authListener.subscription.unsubscribe();
-      sub.remove();
+      cancelled = true;
+      authSubscription?.subscription?.unsubscribe();
+      linkingSubscription?.remove();
     };
   }, []);
 
-  const configureAndroidNotificationChannel = async () => {
-    try {
-      if (Platform.OS !== "android") return;
-      await Notifications.setNotificationChannelAsync("default", {
-        name: "default",
-        importance: Notifications.AndroidImportance.HIGH,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: "#2563EB",
-      });
-    } catch (error) {
-      console.log("Notification channel setup failed:", error?.message);
-    }
-  };
-
-  const requestNotificationPermission = async () => {
-    try {
-      const { status } = await Notifications.getPermissionsAsync();
-      if (status !== "granted") {
-        await Notifications.requestPermissionsAsync();
-      }
-    } catch (error) {
-      console.log("Notification permission failed:", error?.message);
-    }
-  };
-
-  const registerExpoPushToken = async (userId) => {
-    try {
-      if (!userId) {
-        console.warn("[Push] Skipped: no user id (not signed in).");
-        return;
-      }
-      if (!Device.isDevice) {
-        console.warn(
-          "[Push] Skipped: not a physical device (simulator / emulator). Use a real phone for push tokens."
-        );
-        return;
-      }
-      // Expo Go on Android does not support remote push tokens (SDK 53+).
-      if (Constants.appOwnership === "expo" && Platform.OS === "android") {
-        console.warn("[Push] Skipped: Android Expo Go cannot register remote push tokens.");
-        return;
-      }
-
-      const { status: existingStatus } = await Notifications.getPermissionsAsync();
-      let finalStatus = existingStatus;
-      if (existingStatus !== "granted") {
-        const { status } = await Notifications.requestPermissionsAsync();
-        finalStatus = status;
-      }
-      if (finalStatus !== "granted") {
-        console.warn("[Push] Skipped: notification permission not granted.");
-        return;
-      }
-
-      const projectId =
-        Constants?.expoConfig?.extra?.eas?.projectId ||
-        Constants?.easConfig?.projectId;
-      if (!projectId) {
-        console.warn(
-          "[Push] Skipped: missing EAS projectId in app config. Rebuild dev client after eas init / app.json extra.eas.projectId."
-        );
-        return;
-      }
-
-      const tokenResponse = await Notifications.getExpoPushTokenAsync({ projectId });
-      const expoPushToken = tokenResponse?.data;
-      if (!expoPushToken) {
-        console.warn("[Push] Skipped: getExpoPushTokenAsync returned no token.", tokenResponse);
-        return;
-      }
-
-      const { error: upsertError } = await supabase.from("user_push_tokens").upsert(
-        {
-          user_id: userId,
-          token: expoPushToken,
-          device_type: Device.osName || "unknown",
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "user_id,token" }
-      );
-
-      if (upsertError) {
-        console.warn("[Push] Supabase upsert failed:", upsertError.message, upsertError);
-        return;
-      }
-
-      console.log("[Push] Token saved for user", userId, "→", expoPushToken.slice(0, 28) + "…");
-    } catch (error) {
-      console.warn("[Push] registerExpoPushToken error:", error?.message, error);
-    }
-  };
-
-  const fetchUserData = async (userId) => {
-    try {
-      const { data: profile } = await supabase.from("profiles").select("role").eq("id", userId).single();
-      if (profile) {
-        setRole(profile.role);
-        if (profile.role === "barber") {
-          const { data: barber } = await supabase.from("barbers").select("is_profile_complete").eq("id", userId).single();
-          setIsSetupComplete(barber?.is_profile_complete || false);
-        }
-      }
-    } catch (error) {
-      console.error("Error fetching user data:", error.message);
-    }
-  };
-
-  if (loading) return (
-    <View style={{ flex: 1, justifyContent: "center", backgroundColor: "#fff" }}>
-      <ActivityIndicator size="large" color="#000" />
-    </View>
-  );
+  if (loading)
+    return (
+      <View style={{ flex: 1, justifyContent: "center", backgroundColor: "#fff" }}>
+        <ActivityIndicator size="large" color="#000" />
+      </View>
+    );
 
   return (
     <SafeAreaProvider>
@@ -285,8 +327,7 @@ export default function App() {
                   ) : (
                     <Stack.Screen name="BarberStack" component={BarberStack} />
                   )}
-                      <Stack.Screen name="SubscriptionPaywall" component={SubscriptionPaywall} />
-                      <Stack.Screen name="RegistrationFeePaywall" component={RegistrationFeePaywall} />
+                  <Stack.Screen name="SubscriptionPaywall" component={SubscriptionPaywall} />
                   <Stack.Screen name="BarberDashboard" component={BarberStack} />
                 </>
               ) : (

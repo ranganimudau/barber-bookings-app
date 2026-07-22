@@ -83,7 +83,8 @@ export default function ClientHome({ navigation }) {
       const { data, error } = await supabase
         .from("barbers")
         .select("*")
-        .eq("is_profile_complete", true);
+        .eq("is_profile_complete", true)
+        .eq("shop_status", "active");
 
       if (error) throw error;
 

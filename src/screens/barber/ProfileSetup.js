@@ -288,26 +288,19 @@ export default function ProfileSetup({ navigation }) {
         }
       }
 
-      // SaaS flow: create default inactive state and open subscription paywall.
+      // SaaS flow: create default locked state and open subscription paywall.
       const { data: existingSub } = await supabase
         .from("barber_subscription_state")
-        .select("status")
+        .select("shop_status")
         .eq("barber_id", user.id)
         .maybeSingle();
 
-      if (!existingSub || existingSub.status !== "active") {
+      if (!existingSub || existingSub.shop_status !== "active") {
         await supabase.from("barber_subscription_state").upsert(
           {
             barber_id: user.id,
-            status: "inactive",
-            trial_booking_limit: 5,
-            trial_booking_used: 0,
-            registration_fee_paid: false,
-            registration_fee_amount: 0,
-            subscription_fee_amount: 100,
-            payment_plan: null,
-            trial_started_at: null,
-            activated_at: null,
+            shop_status: "locked",
+            subscription_status: "none",
           },
           { onConflict: "barber_id" }
         );

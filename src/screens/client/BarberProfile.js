@@ -379,6 +379,29 @@ export default function BarberProfile({ route, navigation }) {
     );
   }
 
+  // Someone hit an old/deep link to a shop that's since locked (trial ended,
+  // subscription lapsed) — show a friendly state instead of a broken page.
+  if (shop?.shop_status === "locked") {
+    return (
+      <View style={[styles.loadingContainer, { backgroundColor: themeColors.background, paddingHorizontal: 32 }]}>
+        <Icon name="storefront-outline" size={40} color={themeColors.textMuted} />
+        <Text style={[styles.loadingText, { color: themeColors.text, fontWeight: "800", marginTop: 14 }]}>
+          Temporarily unavailable
+        </Text>
+        <Text style={{ color: themeColors.textMuted, textAlign: "center", marginTop: 8, lineHeight: 20 }}>
+          This shop isn't accepting bookings right now. Please check back later.
+        </Text>
+        <TouchableOpacity
+          style={{ marginTop: 20, paddingVertical: 12, paddingHorizontal: 20 }}
+          onPress={() => navigation.goBack()}
+          activeOpacity={0.85}
+        >
+          <Text style={{ color: themeColors.accent, fontWeight: "800" }}>Go back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   const calendarTheme = {
     backgroundColor: "transparent",
     calendarBackground: themeColors.surface,
