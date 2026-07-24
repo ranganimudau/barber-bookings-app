@@ -12,6 +12,7 @@ import BarberSettings from '../screens/barber/BarberSettings';
 import EditProfile from '../screens/barber/EditProfile';
 import Services from '../screens/barber/Services';
 import SubscriptionSettings from '../screens/barber/SubscriptionSettings';
+import SupportInfo from '../screens/barber/SupportInfo';
 import { colors as barberColors } from '../theme/barberTheme';
 
 const Tab = createBottomTabNavigator();
@@ -39,6 +40,11 @@ function SettingsStack() {
       <Stack.Screen name="EditProfile" component={EditProfile} options={{ title: "Edit Shop Info" }} />
       <Stack.Screen name="Services" component={Services} options={{ title: "Manage Services" }} />
       <Stack.Screen name="SubscriptionSettings" component={SubscriptionSettings} options={{ title: "Subscription" }} />
+      <Stack.Screen
+        name="SupportInfo"
+        component={SupportInfo}
+        options={({ route }) => ({ title: route.params?.title || "Info" })}
+      />
     </Stack.Navigator>
   );
 }
