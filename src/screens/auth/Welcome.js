@@ -1,8 +1,65 @@
-import React from "react";
-import { Alert, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLightStatusBar } from "../../hooks/useLightStatusBar";
 import { colors, shadows } from "../../theme/barberTheme";
+
+const HERO_IMAGES = [
+  require("../../../assets/images/welcome/Salon-Fresh.jpg"),
+  require("../../../assets/images/welcome/nails.jpg"),
+  require("../../../assets/images/welcome/hero-nails.webp"),
+  require("../../../assets/images/welcome/barber.jpg"),
+];
+const HERO_HEIGHT = 200;
+const AUTO_ADVANCE_MS = 3500;
+
+function HeroCarousel() {
+  const { width: windowWidth } = useWindowDimensions();
+  const imageWidth = windowWidth - 24 * 2; // matches screen's paddingHorizontal
+  const scrollRef = useRef(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setActiveIndex((prev) => {
+        const next = (prev + 1) % HERO_IMAGES.length;
+        scrollRef.current?.scrollTo({ x: next * imageWidth, animated: true });
+        return next;
+      });
+    }, AUTO_ADVANCE_MS);
+    return () => clearInterval(timer);
+  }, [imageWidth]);
+
+  const handleMomentumScrollEnd = useCallback(
+    (e) => {
+      const idx = Math.round(e.nativeEvent.contentOffset.x / imageWidth);
+      setActiveIndex(Math.min(Math.max(idx, 0), HERO_IMAGES.length - 1));
+    },
+    [imageWidth]
+  );
+
+  return (
+    <View style={styles.heroWrap}>
+      <ScrollView
+        ref={scrollRef}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onMomentumScrollEnd={handleMomentumScrollEnd}
+        style={{ borderRadius: 18 }}
+      >
+        {HERO_IMAGES.map((src, idx) => (
+          <Image key={idx} source={src} style={{ width: imageWidth, height: HERO_HEIGHT }} resizeMode="cover" />
+        ))}
+      </ScrollView>
+      <View style={styles.dotsRow}>
+        {HERO_IMAGES.map((_, idx) => (
+          <View key={idx} style={[styles.dot, idx === activeIndex && styles.dotActive]} />
+        ))}
+      </View>
+    </View>
+  );
+}
 
 export default function Welcome({ navigation }) {
   useLightStatusBar(colors.background);
@@ -23,7 +80,7 @@ export default function Welcome({ navigation }) {
         <Text style={styles.title}>SkoonBook</Text>
         <Text style={styles.subtitle}>Hair, nails and beauty, near you.</Text>
 
-        <View style={styles.imagePlaceholder} />
+        <HeroCarousel />
       </View>
 
       <View style={styles.actions}>
@@ -73,13 +130,10 @@ const styles = StyleSheet.create({
   logoBadgeText: { fontSize: 20, fontWeight: "900", color: colors.accentText, letterSpacing: 0.5 },
   title: { fontSize: 28, fontWeight: "800", color: colors.text, marginBottom: 8 },
   subtitle: { fontSize: 15, color: colors.textMuted, textAlign: "center" },
-  imagePlaceholder: {
-    width: "100%",
-    height: 160,
-    borderRadius: 18,
-    backgroundColor: colors.accentSoft,
-    marginTop: 32,
-  },
+  heroWrap: { width: "100%", marginTop: 32 },
+  dotsRow: { flexDirection: "row", justifyContent: "center", gap: 6, marginTop: 10 },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.border },
+  dotActive: { backgroundColor: colors.accent, width: 16 },
 
   actions: { width: "100%", marginTop: 32 },
   primaryBtn: {
