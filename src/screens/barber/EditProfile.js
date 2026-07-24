@@ -19,6 +19,7 @@ import Icon from "react-native-vector-icons/Ionicons";
 import { useLightStatusBar } from "../../hooks/useLightStatusBar";
 import { supabase } from "../../supabase/supabaseClient";
 import { colors, shadows } from "../../theme/barberTheme";
+import { invokeDeleteBarberAccount } from "../../utils/invokeDeleteBarberAccount";
 import { resolveStorageImageUrl } from "../../utils/storageImageUrl";
 
 export default function EditProfile() {
@@ -45,7 +46,8 @@ export default function EditProfile() {
 
   const [openingTime, setOpeningTime] = useState(new Date(new Date().setHours(8, 0, 0, 0)));
   const [closingTime, setClosingTime] = useState(new Date(new Date().setHours(17, 0, 0, 0)));
-  const [showPicker, setShowPicker] = useState(null); 
+  const [showPicker, setShowPicker] = useState(null);
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   useEffect(() => {
     const showEvt = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
@@ -253,6 +255,58 @@ export default function EditProfile() {
     return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
   };
 
+  const handleDeleteAccountPermanently = () => {
+    Alert.alert(
+      "Delete account permanently?",
+      "This removes your shop listing, services, availability, bookings, subscription state, and your login. Clients will no longer see your business. This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete forever",
+          style: "destructive",
+          onPress: () => {
+            Alert.alert(
+              "Are you sure?",
+              "Your barber account and data will be permanently deleted.",
+              [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "Yes, delete my account",
+                  style: "destructive",
+                  onPress: () => {
+                    setDeletingAccount(true);
+                    // Defer until alerts finish dismissing (Android can stall async inside Alert.onPress).
+                    setTimeout(async () => {
+                      try {
+                        const result = await invokeDeleteBarberAccount();
+                        if (!result.ok) {
+                          Alert.alert("Delete failed", result.message);
+                          return;
+                        }
+                        const { error: signOutErr } = await supabase.auth.signOut();
+                        if (signOutErr) {
+                          Alert.alert("Account removed", "You were signed out. " + signOutErr.message);
+                        }
+                      } catch (e) {
+                        Alert.alert(
+                          "Delete failed",
+                          e?.message ||
+                            "Network error. Check your connection and try again."
+                        );
+                      } finally {
+                        setDeletingAccount(false);
+                      }
+                    }, 320);
+                  },
+                },
+              ]
+            );
+          },
+        },
+      ]
+    );
+  };
+
   if (loading) return <ActivityIndicator style={{ flex: 1, backgroundColor: colors.background }} size="large" color={colors.accent} />;
 
   return (
@@ -403,6 +457,19 @@ export default function EditProfile() {
           {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveButtonText}>Save All Changes</Text>}
         </TouchableOpacity>
 
+        <TouchableOpacity
+          style={styles.deleteAccountLink}
+          onPress={handleDeleteAccountPermanently}
+          disabled={deletingAccount}
+          activeOpacity={0.6}
+        >
+          {deletingAccount ? (
+            <ActivityIndicator color={colors.error} size="small" />
+          ) : (
+            <Text style={styles.deleteAccountLinkText}>Delete account</Text>
+          )}
+        </TouchableOpacity>
+
       <Modal visible={showPreview} animationType="slide">
         <View style={{ flex: 1, backgroundColor: colors.background }}>
           <View style={modalStyles.modalHeader}>
@@ -480,6 +547,8 @@ const styles = StyleSheet.create({
   saveButton: { backgroundColor: colors.accent, padding: 18, borderRadius: 12, alignItems: "center", marginTop: 10 },
   saveButtonDisabled: { backgroundColor: colors.borderStrong },
   saveButtonText: { color: colors.accentText, fontWeight: "800", fontSize: 16 },
+  deleteAccountLink: { alignItems: "center", justifyContent: "center", marginTop: 18, paddingVertical: 8 },
+  deleteAccountLinkText: { color: colors.textMuted, fontSize: 13, fontWeight: "600", textDecorationLine: "underline" },
   avatarContainerEdit: { alignItems: 'center', marginBottom: 12 },
   avatarImageEdit: { width: 100, height: 100, borderRadius: 50, borderWidth: 2, borderColor: colors.accent },
   avatarPlaceholderEdit: { width: 100, height: 100, borderRadius: 50, backgroundColor: colors.surfaceMuted, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: colors.border },

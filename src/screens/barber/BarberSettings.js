@@ -1,69 +1,14 @@
-import React, { useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React from 'react';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLightStatusBar } from '../../hooks/useLightStatusBar';
 import { supabase } from "../../supabase/supabaseClient";
 import { colors, shadows } from '../../theme/barberTheme';
-import { invokeDeleteBarberAccount } from "../../utils/invokeDeleteBarberAccount";
 
 export default function BarberSettings({ navigation }) {
   useLightStatusBar(colors.background);
   const insets = useSafeAreaInsets();
-
-  const [deletingAccount, setDeletingAccount] = useState(false);
-
-  const handleDeleteAccountPermanently = () => {
-    Alert.alert(
-      "Delete account permanently?",
-      "This removes your shop listing, services, availability, bookings, subscription state, and your login. Clients will no longer see your business. This cannot be undone.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete forever",
-          style: "destructive",
-          onPress: () => {
-            Alert.alert(
-              "Are you sure?",
-              "Your barber account and data will be permanently deleted.",
-              [
-                { text: "Cancel", style: "cancel" },
-                {
-                  text: "Yes, delete my account",
-                  style: "destructive",
-                  onPress: () => {
-                    setDeletingAccount(true);
-                    // Defer until alerts finish dismissing (Android can stall async inside Alert.onPress).
-                    setTimeout(async () => {
-                      try {
-                        const result = await invokeDeleteBarberAccount();
-                        if (!result.ok) {
-                          Alert.alert("Delete failed", result.message);
-                          return;
-                        }
-                        const { error: signOutErr } = await supabase.auth.signOut();
-                        if (signOutErr) {
-                          Alert.alert("Account removed", "You were signed out. " + signOutErr.message);
-                        }
-                      } catch (e) {
-                        Alert.alert(
-                          "Delete failed",
-                          e?.message ||
-                            "Network error. Check your connection and try again."
-                        );
-                      } finally {
-                        setDeletingAccount(false);
-                      }
-                    }, 320);
-                  },
-                },
-              ]
-            );
-          },
-        },
-      ]
-    );
-  };
 
   const menuItems = [
     { title: "Edit Shop Profile", icon: "business-outline", screen: "EditProfile" },
@@ -120,29 +65,6 @@ export default function BarberSettings({ navigation }) {
           </View>
         </TouchableOpacity>
       </View>
-
-      <Text style={[styles.sectionTitle, styles.dangerSectionTitle]}>Danger zone</Text>
-      <View style={styles.dangerCard}>
-        <Text style={styles.dangerTitle}>Delete account</Text>
-        <Text style={styles.dangerBody}>
-          Permanently removes your shop listing, services, availability, and bookings. This cannot be undone.
-        </Text>
-        <TouchableOpacity
-          style={[styles.deleteAccountBtn, deletingAccount && styles.deleteAccountBtnDisabled]}
-          onPress={handleDeleteAccountPermanently}
-          disabled={deletingAccount}
-          activeOpacity={0.7}
-        >
-          {deletingAccount ? (
-            <ActivityIndicator color={colors.error} size="small" />
-          ) : (
-            <>
-              <Ionicons name="trash-outline" size={15} color={colors.error} />
-              <Text style={styles.deleteAccountBtnText}>Delete my account</Text>
-            </>
-          )}
-        </TouchableOpacity>
-      </View>
       </ScrollView>
     </View>
   );
@@ -195,28 +117,4 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   menuText: { fontSize: 16, marginLeft: 12, color: colors.text, fontWeight: '700' },
-  dangerSectionTitle: { color: colors.error, opacity: 0.85 },
-  dangerCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 18,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: 8,
-  },
-  dangerTitle: { fontSize: 14, fontWeight: '800', color: colors.text, marginBottom: 4 },
-  dangerBody: { fontSize: 13, color: colors.textMuted, lineHeight: 18, marginBottom: 14 },
-  deleteAccountBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.error,
-  },
-  deleteAccountBtnDisabled: { opacity: 0.6 },
-  deleteAccountBtnText: { color: colors.error, fontWeight: '700', fontSize: 13 },
 });
