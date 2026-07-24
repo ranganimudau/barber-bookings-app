@@ -69,6 +69,18 @@ export function isSubscriptionEligible(state) {
   return state?.shop_status === "active";
 }
 
+/** True once the barber has cancelled but is still inside the period they already paid for. */
+export function isPendingCancellation(state) {
+  return state?.subscription_status === "active" && !!state?.cancel_at_period_end;
+}
+
+export const formatSubscriptionDate = (isoDate) => {
+  if (!isoDate) return "";
+  const d = new Date(isoDate);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("en-ZA", { day: "numeric", month: "short", year: "numeric" });
+};
+
 export function getSubscriptionLabel(state) {
   if (!state) return "Locked";
 
@@ -86,9 +98,12 @@ export function getSubscriptionLabel(state) {
     return `Renewal failed — pay within ${daysLeft} day${daysLeft === 1 ? "" : "s"} to avoid lock`;
   }
 
+  if (isPendingCancellation(state)) {
+    return `Cancelled — active until ${formatSubscriptionDate(state.subscription_renews_at)}`;
+  }
+
   if (state.subscription_status === "active") {
-    const daysLeft = daysUntil(state.subscription_renews_at);
-    return `Active subscription — renews in ${daysLeft} day${daysLeft === 1 ? "" : "s"}`;
+    return `Active — renews on ${formatSubscriptionDate(state.subscription_renews_at)}`;
   }
 
   const trialDaysLeft = getTrialDaysRemaining(state);

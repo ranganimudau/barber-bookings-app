@@ -16,3 +16,8 @@ verify_jwt = false
 [functions.payfast-app-return]
 # Browser GET after PayFast; no JWT. Serves HTML that opens barberapp://…
 verify_jwt = false
+
+[functions.cancel-payfast-subscription]
+# Same as create-payfast-checkout: RN/EAS builds often get 401 Invalid JWT at the gateway even with a valid session.
+# Auth is enforced inside the function via supabaseAuth.auth.getUser() with the caller's Bearer token.
+verify_jwt = false

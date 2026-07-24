@@ -93,7 +93,9 @@ Deno.serve(async (req: Request) => {
             { onConflict: "barber_id" },
           );
       } else {
-        // First subscription payment — unlock immediately, start the 30-day cycle.
+        // First subscription payment (or a resubscribe after a prior
+        // cancellation) — unlock immediately, start a fresh 30-day cycle,
+        // and clear any pending cancellation from a previous subscription.
         await supabase
           .from("barber_subscription_state")
           .upsert(
@@ -104,6 +106,7 @@ Deno.serve(async (req: Request) => {
               subscription_renews_at: addDaysIso(30),
               grace_started_at: null,
               payfast_token: token,
+              cancel_at_period_end: false,
             },
             { onConflict: "barber_id" },
           );

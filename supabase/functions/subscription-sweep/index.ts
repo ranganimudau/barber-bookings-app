@@ -44,6 +44,18 @@ Deno.serve(async (req: Request) => {
       .select("barber_id");
     if (graceErr) throw graceErr;
 
+    // 2b. Self-serve cancellation reached its paid-through date -> lock.
+    // The PayFast token was already stopped when the barber cancelled, so
+    // no charge is attempted here — this only flips the DB state.
+    const { data: cancelExpired, error: cancelErr } = await supabase
+      .from("barber_subscription_state")
+      .update({ shop_status: "locked", subscription_status: "none" })
+      .eq("subscription_status", "active")
+      .eq("cancel_at_period_end", true)
+      .lt("subscription_renews_at", now.toISOString())
+      .select("barber_id");
+    if (cancelErr) throw cancelErr;
+
     // 3. Still within grace -> nudge.
     const { data: inGrace, error: inGraceErr } = await supabase
       .from("barber_subscription_state")
@@ -87,6 +99,7 @@ Deno.serve(async (req: Request) => {
         ok: true,
         locked_trial_expired: (trialExpired || []).length,
         locked_grace_expired: (graceExpired || []).length,
+        locked_cancel_expired: (cancelExpired || []).length,
         nudged,
       }),
       { status: 200, headers: { "Content-Type": "application/json" } },
