@@ -11,7 +11,6 @@ import { resolveStorageImageUrl } from '../../utils/storageImageUrl';
 const SUPPORT_EMAIL = "ranganimudau55@gmail.com";
 
 const menuItems = [
-  { title: "Edit Shop Profile", icon: "business-outline", screen: "EditProfile", iconBg: colors.accentSoft, iconFg: colors.accent },
   { title: "Manage Services & Prices", icon: "pricetag-outline", screen: "Services", iconBg: colors.pendingBg, iconFg: colors.pending },
   { title: "Subscription / Plan", icon: "card-outline", screen: "SubscriptionSettings", iconBg: colors.successBg, iconFg: colors.success },
 ];
