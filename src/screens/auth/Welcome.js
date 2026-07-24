@@ -1,7 +1,6 @@
 import React from "react";
 import { Alert, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Icon from "react-native-vector-icons/Ionicons";
 import { useLightStatusBar } from "../../hooks/useLightStatusBar";
 import { colors, shadows } from "../../theme/barberTheme";
 
@@ -18,10 +17,10 @@ export default function Welcome({ navigation }) {
     >
       <View style={styles.content}>
         <View style={styles.logoBadge}>
-          <Icon name="sparkles-outline" size={22} color={colors.accent} />
+          <Text style={styles.logoBadgeText}>SB</Text>
         </View>
 
-        <Text style={styles.title}>Welcome</Text>
+        <Text style={styles.title}>SkoonBook</Text>
         <Text style={styles.subtitle}>Hair, nails and beauty, near you.</Text>
 
         <View style={styles.imagePlaceholder} />
@@ -58,17 +57,20 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
     paddingHorizontal: 24,
+    justifyContent: "center",
   },
-  content: { alignItems: "center", marginTop: 40 },
+  content: { alignItems: "center" },
   logoBadge: {
     width: 56,
     height: 56,
     borderRadius: 16,
-    backgroundColor: colors.accentSoft,
+    backgroundColor: colors.accent,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 20,
+    ...shadows.button,
   },
+  logoBadgeText: { fontSize: 20, fontWeight: "900", color: colors.accentText, letterSpacing: 0.5 },
   title: { fontSize: 28, fontWeight: "800", color: colors.text, marginBottom: 8 },
   subtitle: { fontSize: 15, color: colors.textMuted, textAlign: "center" },
   imagePlaceholder: {
@@ -79,7 +81,7 @@ const styles = StyleSheet.create({
     marginTop: 32,
   },
 
-  actions: { width: "100%", marginTop: "auto" },
+  actions: { width: "100%", marginTop: 32 },
   primaryBtn: {
     backgroundColor: colors.accent,
     borderRadius: 14,
