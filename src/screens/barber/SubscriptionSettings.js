@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { supabase } from "../../supabase/supabaseClient";
-import { colors } from "../../theme/clientTheme";
+import { colors, shadows } from "../../theme/barberTheme";
 import { ensureBarberSubscriptionState, getSubscriptionLabel, getTrialDaysRemaining, isSubscriptionEligible } from "../../utils/subscriptionState";
 
 export default function SubscriptionSettings({ navigation }) {
@@ -45,7 +45,7 @@ export default function SubscriptionSettings({ navigation }) {
           <Ionicons
             name={eligible ? "checkmark-circle" : "lock-closed-outline"}
             size={18}
-            color={eligible ? "#22C55E" : colors.accent}
+            color={eligible ? colors.success : colors.accent}
           />
           <Text style={styles.rowText}>{eligible ? "Active / Eligible" : "Locked — payment required"}</Text>
         </View>
@@ -70,19 +70,20 @@ export default function SubscriptionSettings({ navigation }) {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   content: { padding: 18, paddingTop: 24, paddingBottom: 34 },
-  title: { color: "#F5F5F0", fontSize: 22, fontWeight: "900", marginBottom: 6 },
+  title: { color: colors.text, fontSize: 22, fontWeight: "900", marginBottom: 6 },
   subtitle: { color: colors.textMuted, fontWeight: "800", marginBottom: 18 },
   card: {
-    backgroundColor: "rgba(255,255,255,0.03)",
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: "rgba(197,160,112,0.25)",
+    borderColor: colors.border,
     borderRadius: 18,
     padding: 14,
     marginBottom: 14,
+    ...shadows.card,
   },
-  cardTitle: { color: colors.accent, fontWeight: "900", marginBottom: 10 },
+  cardTitle: { color: colors.text, fontWeight: "900", marginBottom: 10 },
   row: { flexDirection: "row", alignItems: "center", gap: 10 },
-  rowText: { color: "#F5F5F0", fontWeight: "800" },
+  rowText: { color: colors.text, fontWeight: "800" },
   hint: { color: colors.textMuted, fontWeight: "700", marginTop: 10 },
   accentBtn: {
     backgroundColor: colors.accent,
@@ -91,14 +92,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 12,
   },
-  accentBtnText: { color: "#0A0A0A", fontWeight: "900", fontSize: 16 },
+  accentBtnText: { color: colors.accentText, fontWeight: "900", fontSize: 16 },
   ghostBtn: {
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "rgba(197,160,112,0.35)",
+    borderColor: colors.border,
     padding: 14,
     alignItems: "center",
   },
   ghostBtnText: { color: colors.accent, fontWeight: "900" },
 });
-

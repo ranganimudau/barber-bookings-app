@@ -16,11 +16,13 @@ import {
 } from "react-native";
 import MapView, { Marker } from 'react-native-maps';
 import Icon from "react-native-vector-icons/Ionicons";
+import { useLightStatusBar } from "../../hooks/useLightStatusBar";
 import { supabase } from "../../supabase/supabaseClient";
-import { colors } from "../../theme/clientTheme";
+import { colors, shadows } from "../../theme/barberTheme";
 import { resolveStorageImageUrl } from "../../utils/storageImageUrl";
 
 export default function EditProfile() {
+  useLightStatusBar(colors.background);
   const navigation = useNavigation();
   const [shopName, setShopName] = useState("");
   const [address, setAddress] = useState("");
@@ -403,7 +405,7 @@ export default function EditProfile() {
         <View style={{ flex: 1, backgroundColor: colors.background }}>
           <View style={modalStyles.modalHeader}>
             <TouchableOpacity onPress={() => setShowPreview(false)} style={modalStyles.modalBackButton}>
-              <Icon name="chevron-back" size={26} color="#fff" />
+              <Icon name="chevron-back" size={26} color={colors.text} />
             </TouchableOpacity>
             <View style={{ flex: 1 }}>
               <Text style={modalStyles.modalHeaderTitle}>Place pin on your shop</Text>
@@ -463,27 +465,27 @@ export default function EditProfile() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background, padding: 20 },
-  sectionHeader: { fontSize: 18, fontWeight: "800", color: colors.accent, marginBottom: 12 },
-  card: { backgroundColor: "rgba(255,255,255,0.03)", borderRadius: 12, padding: 15, marginBottom: 20, borderWidth: 1, borderColor: 'rgba(197,160,112,0.25)' },
+  sectionHeader: { fontSize: 18, fontWeight: "800", color: colors.text, marginBottom: 12 },
+  card: { backgroundColor: colors.surface, borderRadius: 16, padding: 15, marginBottom: 20, borderWidth: 1, borderColor: colors.border, ...shadows.card },
   label: { fontSize: 13, fontWeight: "700", color: colors.textMuted, marginBottom: 8 },
-  input: { borderWidth: 1, borderColor: 'rgba(197,160,112,0.2)', padding: 12, borderRadius: 8, marginBottom: 15, backgroundColor: "rgba(255,255,255,0.03)", color: colors.text },
-  inputLocked: { backgroundColor: 'rgba(255,255,255,0.02)', color: colors.textMuted },
+  input: { borderWidth: 1, borderColor: colors.border, padding: 12, borderRadius: 8, marginBottom: 15, backgroundColor: colors.surface, color: colors.text },
+  inputLocked: { backgroundColor: colors.surfaceMuted, color: colors.textMuted },
   textArea: { height: 60, textAlignVertical: "top" },
   row: { flexDirection: 'row', justifyContent: 'space-between' },
-  timeBtn: { backgroundColor: 'rgba(255,255,255,0.03)', padding: 12, borderRadius: 8, flex: 0.48, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(197,160,112,0.2)' },
+  timeBtn: { backgroundColor: colors.surface, padding: 12, borderRadius: 8, flex: 0.48, alignItems: 'center', borderWidth: 1, borderColor: colors.border },
   disabledAction: { opacity: 0.45 },
   timeBtnText: { fontWeight: '700', color: colors.text },
-  saveButton: { backgroundColor: "#0A0A0A", padding: 18, borderRadius: 12, alignItems: "center", marginTop: 10, borderWidth: 1, borderColor: 'rgba(197,160,112,0.35)' },
-  saveButtonDisabled: { backgroundColor: '#9ca3af' },
-  saveButtonText: { color: colors.accent, fontWeight: "800", fontSize: 16 },
+  saveButton: { backgroundColor: colors.accent, padding: 18, borderRadius: 12, alignItems: "center", marginTop: 10 },
+  saveButtonDisabled: { backgroundColor: colors.borderStrong },
+  saveButtonText: { color: colors.accentText, fontWeight: "800", fontSize: 16 },
   avatarContainerEdit: { alignItems: 'center', marginBottom: 12 },
   avatarImageEdit: { width: 100, height: 100, borderRadius: 50, borderWidth: 2, borderColor: colors.accent },
-  avatarPlaceholderEdit: { width: 100, height: 100, borderRadius: 50, backgroundColor: 'rgba(255,255,255,0.03)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(197,160,112,0.2)' },
-  cameraIconEdit: { position: 'absolute', bottom: 0, right: 0, backgroundColor: '#0A0A0A', padding: 8, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(197,160,112,0.35)' },
-  editInfoToggleBtn: { marginTop: 10, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.03)', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(197,160,112,0.25)' },
-  editInfoToggleBtnActive: { backgroundColor: '#0A0A0A', borderColor: 'rgba(197,160,112,0.45)' },
+  avatarPlaceholderEdit: { width: 100, height: 100, borderRadius: 50, backgroundColor: colors.surfaceMuted, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: colors.border },
+  cameraIconEdit: { position: 'absolute', bottom: 0, right: 0, backgroundColor: colors.accent, padding: 8, borderRadius: 20, borderWidth: 2, borderColor: colors.surface },
+  editInfoToggleBtn: { marginTop: 10, flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surfaceMuted, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, borderWidth: 1, borderColor: colors.border },
+  editInfoToggleBtnActive: { backgroundColor: colors.accent, borderColor: colors.accent },
   editInfoHint: { marginLeft: 6, fontSize: 12, color: colors.textMuted, fontWeight: '500' },
-  editInfoHintActive: { color: '#fff' },
+  editInfoHintActive: { color: colors.accentText },
   keyboardDoneBar: {
     position: "absolute",
     left: 12,
@@ -494,12 +496,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: "#0A0A0A",
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: "rgba(197,160,112,0.45)",
+    borderColor: colors.borderStrong,
     borderRadius: 999,
     paddingVertical: 8,
     paddingHorizontal: 12,
+    ...shadows.card,
   },
   keyboardDoneText: {
     color: colors.accent,
@@ -509,11 +512,11 @@ const styles = StyleSheet.create({
 });
 
 const modalStyles = StyleSheet.create({
-  modalHeader: { height: 80, paddingTop: 30, paddingHorizontal: 15, backgroundColor: '#0A0A0A', flexDirection: 'row', alignItems: 'center' },
+  modalHeader: { height: 80, paddingTop: 30, paddingHorizontal: 15, backgroundColor: colors.surface, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: colors.border },
   modalBackButton: { marginRight: 10 },
-  modalHeaderTitle: { color: colors.accent, fontWeight: 'bold', fontSize: 16 },
+  modalHeaderTitle: { color: colors.text, fontWeight: 'bold', fontSize: 16 },
   modalSubtitle: { color: colors.textMuted, fontSize: 12, marginTop: 4, lineHeight: 16 },
-  mapHint: { paddingHorizontal: 14, paddingVertical: 10, color: colors.textMuted, fontSize: 12, lineHeight: 17, backgroundColor: 'rgba(0,0,0,0.35)' },
-  fixedBottomBtn: { position: 'absolute', bottom: 30, left: 20, right: 20, backgroundColor: '#0A0A0A', padding: 15, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(197,160,112,0.35)' },
-  closeModalText: { color: colors.accent, fontWeight: 'bold' },
+  mapHint: { paddingHorizontal: 14, paddingVertical: 10, color: colors.textSecondary, fontSize: 12, lineHeight: 17, backgroundColor: colors.surfaceMuted },
+  fixedBottomBtn: { position: 'absolute', bottom: 30, left: 20, right: 20, backgroundColor: colors.accent, padding: 15, borderRadius: 12, alignItems: 'center', ...shadows.floating },
+  closeModalText: { color: colors.accentText, fontWeight: 'bold' },
 });

@@ -1,11 +1,9 @@
 import { useFocusEffect } from '@react-navigation/native';
-import { setStatusBarBackgroundColor, setStatusBarStyle } from 'expo-status-bar';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
     Image,
-    Platform,
     RefreshControl,
     ScrollView,
     StyleSheet,
@@ -16,6 +14,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Svg, { Circle, Defs, LinearGradient, Path, Stop } from 'react-native-svg';
+import { useLightStatusBar } from '../../hooks/useLightStatusBar';
 import { supabase } from '../../supabase/supabaseClient';
 import { colors, shadows } from '../../theme/barberTheme';
 import {
@@ -137,20 +136,7 @@ export default function BarberDashboard({ navigation }) {
     }, [load])
   );
 
-  // This screen is light (white background) while the rest of the app is
-  // still dark-themed — flip the system status bar to dark icons only while
-  // Dashboard is focused, and restore it on blur (tab screens stay mounted,
-  // so this can't rely on unmount).
-  useFocusEffect(
-    useCallback(() => {
-      setStatusBarStyle('dark');
-      if (Platform.OS === 'android') setStatusBarBackgroundColor(colors.background, false);
-      return () => {
-        setStatusBarStyle('light');
-        if (Platform.OS === 'android') setStatusBarBackgroundColor('#0A0A0A', false);
-      };
-    }, [])
-  );
+  useLightStatusBar(colors.background);
 
   const onRefresh = () => {
     setRefreshing(true);

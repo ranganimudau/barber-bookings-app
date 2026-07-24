@@ -11,14 +11,16 @@ import {
   View
 } from "react-native";
 import Icon from "react-native-vector-icons/Ionicons";
-import { LinearGradient } from "expo-linear-gradient";
-import { colors } from "../../theme/clientTheme";
+import { useLightStatusBar } from "../../hooks/useLightStatusBar";
+import { colors, shadows } from "../../theme/barberTheme";
 import { supabase } from "../../supabase/supabaseClient";
 import { resolveStorageImageUrl } from "../../utils/storageImageUrl";
 import { ensureBarberSubscriptionState, isSubscriptionEligible } from "../../utils/subscriptionState";
 import { scheduleLocalNotificationSafe } from "../../utils/safeLocalNotification";
 
 export default function Appointments({ navigation }) {
+  useLightStatusBar(colors.background);
+
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("active");
@@ -185,10 +187,10 @@ export default function Appointments({ navigation }) {
       if (error) throw error;
 
       // Optimistically update local state for better speed
-      setBookings(prev => 
+      setBookings(prev =>
         prev.map(b => b.id === appointmentId ? { ...b, status: newStatus } : b)
       );
-      
+
       Alert.alert("Success", `Appointment ${newStatus}`);
 
       // Strict counting is now done in DB trigger on appointment acceptance.
@@ -312,13 +314,6 @@ export default function Appointments({ navigation }) {
   const formatCurrency = (amount) => `R${Number(amount || 0).toFixed(2)}`;
   const getClientAvatarUri = (item) => resolveStorageImageUrl(item?.profiles?.avatar_url);
 
-  const greeting = useMemo(() => {
-    const hour = new Date().getHours();
-    if (hour < 12) return "Good Morning";
-    if (hour < 18) return "Good Afternoon";
-    return "Good Evening";
-  }, []);
-
   const renderActionCard = (item) => (
     <View key={item.id} style={styles.requestCard}>
       <View style={styles.requestMain}>
@@ -326,7 +321,7 @@ export default function Appointments({ navigation }) {
           <Image source={{ uri: getClientAvatarUri(item) }} style={styles.requestAvatar} />
         ) : (
           <View style={styles.requestAvatarFallback}>
-            <Icon name="person" size={18} color="#7c8598" />
+            <Icon name="person" size={18} color={colors.textMuted} />
           </View>
         )}
 
@@ -336,7 +331,7 @@ export default function Appointments({ navigation }) {
             {item.service_name || "Service"} - {formatCurrency(item.price)}
           </Text>
           <Text style={styles.requestTime}>
-            <Icon name="time-outline" size={13} color="#6b7280" /> {item.appointment_date} at {formatTime(item.appointment_time)}
+            <Icon name="time-outline" size={13} color={colors.textMuted} /> {item.appointment_date} at {formatTime(item.appointment_time)}
           </Text>
           <View style={styles.pendingPill}>
             <Text style={styles.pendingPillText}>Pending</Text>
@@ -365,7 +360,7 @@ export default function Appointments({ navigation }) {
             <Image source={{ uri: getClientAvatarUri(item) }} style={styles.historyAvatar} />
           ) : (
             <View style={styles.historyAvatarFallback}>
-              <Icon name="person" size={16} color="#7c8598" />
+              <Icon name="person" size={16} color={colors.textMuted} />
             </View>
           )}
           <View>
@@ -375,7 +370,7 @@ export default function Appointments({ navigation }) {
         </View>
         <View style={styles.historyRight}>
           <Text style={styles.historyTime}>{item.appointment_date}</Text>
-          <Text style={[styles.historyStatus, { color: isDone ? "#16a34a" : "#dc2626" }]}>
+          <Text style={[styles.historyStatus, { color: isDone ? colors.success : colors.error }]}>
             {isDone ? "Completed" : "Cancelled"}
           </Text>
         </View>
@@ -390,7 +385,7 @@ export default function Appointments({ navigation }) {
           <Image source={{ uri: getClientAvatarUri(item) }} style={styles.historyAvatar} />
         ) : (
           <View style={styles.historyAvatarFallback}>
-            <Icon name="person" size={16} color="#7c8598" />
+            <Icon name="person" size={16} color={colors.textMuted} />
           </View>
         )}
         <View>
@@ -413,7 +408,7 @@ export default function Appointments({ navigation }) {
   if (loading && bookings.length === 0) {
     return (
       <View style={styles.loadingWrap}>
-        <ActivityIndicator size="large" color="#111827" />
+        <ActivityIndicator size="large" color={colors.accent} />
       </View>
     );
   }
@@ -426,6 +421,8 @@ export default function Appointments({ navigation }) {
         refreshControl={
           <RefreshControl
             refreshing={loading}
+            tintColor={colors.accent}
+            colors={[colors.accent]}
             onRefresh={async () => {
               const { data: { user } } = await supabase.auth.getUser();
               if (user) fetchBarberBookings(user.id);
@@ -433,23 +430,24 @@ export default function Appointments({ navigation }) {
           />
         }
       >
-        <Text style={styles.greeting}>{`${greeting}, ${shopName} 💈`}</Text>
+        <Text style={styles.screenTitle}>Bookings</Text>
 
-        <LinearGradient colors={["#0A0A0A", "#2a1f15"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.summaryCard}>
-          <Text style={styles.summaryTitle}>Daily Overview</Text>
-          <View style={styles.summaryGrid}>
-            <View style={styles.summaryItem}>
+        <View style={styles.summaryCard}>
+          <View style={styles.summaryItem}>
+            <View style={styles.summaryIconBadge}>
               <Icon name="calendar-outline" size={16} color={colors.accent} />
-              <Text style={styles.summaryLabel}>Today's Bookings</Text>
-              <Text style={styles.summaryValue}>{todaysBookings.length}</Text>
             </View>
-            <View style={styles.summaryItem}>
-              <Icon name="alert-circle-outline" size={16} color={colors.accent} />
-              <Text style={styles.summaryLabel}>Pending Requests</Text>
-              <Text style={styles.summaryValue}>{todaysPending.length}</Text>
-            </View>
+            <Text style={styles.summaryValue}>{todaysBookings.length}</Text>
+            <Text style={styles.summaryLabel}>Today's Bookings</Text>
           </View>
-        </LinearGradient>
+          <View style={styles.summaryItem}>
+            <View style={styles.summaryIconBadge}>
+              <Icon name="alert-circle-outline" size={16} color={colors.accent} />
+            </View>
+            <Text style={styles.summaryValue}>{todaysPending.length}</Text>
+            <Text style={styles.summaryLabel}>Pending Requests</Text>
+          </View>
+        </View>
 
         <View style={styles.segmentWrap}>
           <TouchableOpacity
@@ -570,35 +568,32 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   content: { padding: 16, paddingBottom: 34 },
   loadingWrap: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.background },
-  greeting: { fontSize: 28, fontWeight: "800", color: "#C5A070", marginBottom: 14 },
+  screenTitle: { fontSize: 24, fontWeight: "800", color: colors.text, marginBottom: 14 },
   summaryCard: {
-    borderRadius: 22,
-    padding: 16,
+    flexDirection: "row",
+    gap: 10,
     marginBottom: 14,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 4,
   },
-  summaryTitle: { color: "#C5A070", fontSize: 13, fontWeight: "700", marginBottom: 10 },
-  summaryGrid: { gap: 10 },
   summaryItem: {
-    backgroundColor: "rgba(255,255,255,0.03)",
-    borderRadius: 14,
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: "rgba(197,160,112,0.25)",
+    borderColor: colors.border,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 12,
+    ...shadows.card,
   },
-  summaryLabel: { color: "#F5F5F0", fontSize: 12, fontWeight: "600", marginTop: 4 },
-  summaryValue: { color: "#F5F5F0", fontSize: 22, fontWeight: "800", marginTop: 2 },
+  summaryIconBadge: {
+    width: 30, height: 30, borderRadius: 15, backgroundColor: colors.accentSoft,
+    alignItems: "center", justifyContent: "center", marginBottom: 8,
+  },
+  summaryLabel: { color: colors.textSecondary, fontSize: 12, fontWeight: "700", marginTop: 2 },
+  summaryValue: { color: colors.text, fontSize: 20, fontWeight: "900" },
   segmentWrap: {
     flexDirection: "row",
-    backgroundColor: "rgba(255,255,255,0.03)",
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "rgba(117,117,117,0.35)",
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: 999,
     padding: 4,
     marginBottom: 18,
   },
@@ -607,52 +602,46 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 10,
-    borderRadius: 11,
+    borderRadius: 999,
   },
-  segmentBtnActive: { backgroundColor: "#0A0A0A", borderWidth: 1, borderColor: "rgba(197,160,112,0.6)" },
-  segmentText: { fontSize: 13, fontWeight: "700", color: "#757575" },
-  segmentTextActive: { color: "#C5A070" },
-  sectionTitle: { fontSize: 18, fontWeight: "800", color: colors.accent, marginBottom: 10 },
+  segmentBtnActive: { backgroundColor: colors.accent },
+  segmentText: { fontSize: 13, fontWeight: "700", color: colors.textSecondary },
+  segmentTextActive: { color: colors.accentText },
+  sectionTitle: { fontSize: 16, fontWeight: "800", color: colors.text, marginBottom: 10 },
   requestCard: {
-    backgroundColor: "rgba(255,255,255,0.03)",
-    borderRadius: 18,
+    backgroundColor: colors.surface,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: "rgba(197,160,112,0.25)",
+    borderColor: colors.border,
     padding: 14,
     marginBottom: 12,
     flexDirection: "row",
     justifyContent: "space-between",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.07,
-    shadowRadius: 10,
-    elevation: 2,
+    ...shadows.card,
   },
   requestMain: { flexDirection: "row", flex: 1, marginRight: 12 },
-  requestAvatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: "#1f2937" },
+  requestAvatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.surfaceMuted },
   requestAvatarFallback: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: "#0b0b10",
+    backgroundColor: colors.surfaceMuted,
     alignItems: "center",
     justifyContent: "center",
   },
   requestInfo: { flex: 1, marginLeft: 10 },
-  requestName: { fontSize: 17, fontWeight: "800", color: "#F5F5F0" },
-  requestService: { marginTop: 3, fontSize: 14, color: "#F5F5F0", fontWeight: "600" },
-  requestTime: { marginTop: 4, fontSize: 14, color: "#F5F5F0", fontWeight: "700" },
+  requestName: { fontSize: 16, fontWeight: "800", color: colors.text },
+  requestService: { marginTop: 3, fontSize: 13, color: colors.textSecondary, fontWeight: "600" },
+  requestTime: { marginTop: 4, fontSize: 13, color: colors.textMuted, fontWeight: "700" },
   pendingPill: {
     alignSelf: "flex-start",
     marginTop: 8,
-    backgroundColor: "rgba(197,160,112,0.12)",
-    borderWidth: 1,
-    borderColor: "#C5A070",
+    backgroundColor: colors.pendingBg,
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
-  pendingPillText: { color: "#C5A070", fontSize: 11, fontWeight: "800" },
+  pendingPillText: { color: colors.pending, fontSize: 11, fontWeight: "800" },
   fabColumn: { justifyContent: "center", gap: 10 },
   fabBtn: {
     width: 44,
@@ -660,35 +649,32 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#111827",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 2,
+    ...shadows.button,
   },
-  acceptFab: { backgroundColor: "#22C55E" },
-  declineFab: { backgroundColor: "#FF3B30" },
+  acceptFab: { backgroundColor: colors.success },
+  declineFab: { backgroundColor: colors.error },
   nextCard: {
-    backgroundColor: "rgba(255,255,255,0.03)",
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: "rgba(197,160,112,0.25)",
-    borderRadius: 18,
+    borderColor: colors.border,
+    borderRadius: 16,
     padding: 14,
     marginBottom: 10,
+    ...shadows.card,
   },
   nextTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  nextClient: { fontSize: 18, fontWeight: "800", color: "#F5F5F0" },
-  nextPrice: { fontSize: 17, fontWeight: "900", color: "#C5A070" },
-  nextService: { marginTop: 4, fontSize: 14, color: "#F5F5F0", fontWeight: "600" },
-  nextMeta: { marginTop: 4, fontSize: 14, color: "#F5F5F0", fontWeight: "700" },
+  nextClient: { fontSize: 17, fontWeight: "800", color: colors.text },
+  nextPrice: { fontSize: 16, fontWeight: "900", color: colors.accent },
+  nextService: { marginTop: 4, fontSize: 13, color: colors.textSecondary, fontWeight: "600" },
+  nextMeta: { marginTop: 4, fontSize: 13, color: colors.textMuted, fontWeight: "700" },
   timelineWrap: { marginTop: 10 },
-  timelineLine: { height: 2, borderRadius: 999, backgroundColor: "#22c55e", marginBottom: 6 },
-  timelineText: { fontSize: 12, color: "#C5A070", fontWeight: "700" },
+  timelineLine: { height: 2, borderRadius: 999, backgroundColor: colors.success, marginBottom: 6 },
+  timelineText: { fontSize: 12, color: colors.accent, fontWeight: "700" },
   historyCard: {
-    backgroundColor: "rgba(255,255,255,0.03)",
+    backgroundColor: colors.surface,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "rgba(117,117,117,0.35)",
+    borderColor: colors.border,
     padding: 12,
     marginBottom: 10,
     flexDirection: "row",
@@ -696,26 +682,26 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   historyLeft: { flexDirection: "row", alignItems: "center", flex: 1 },
-  historyAvatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: "#1f2937", marginRight: 10 },
+  historyAvatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.surfaceMuted, marginRight: 10 },
   historyAvatarFallback: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#0b0b10",
+    backgroundColor: colors.surfaceMuted,
     alignItems: "center",
     justifyContent: "center",
     marginRight: 10,
   },
-  historyName: { fontSize: 15, fontWeight: "800", color: "#F5F5F0" },
-  historySub: { fontSize: 13, color: "#F5F5F0", marginTop: 2 },
+  historyName: { fontSize: 15, fontWeight: "800", color: colors.text },
+  historySub: { fontSize: 13, color: colors.textSecondary, marginTop: 2 },
   historyRight: { alignItems: "flex-end", marginLeft: 10 },
-  historyTime: { fontSize: 13, color: "#F5F5F0", fontWeight: "700", marginBottom: 4 },
+  historyTime: { fontSize: 13, color: colors.textMuted, fontWeight: "700", marginBottom: 4 },
   historyStatus: { fontSize: 12, fontWeight: "800" },
   completionCard: {
-    backgroundColor: "rgba(255,255,255,0.03)",
+    backgroundColor: colors.surface,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "rgba(117,117,117,0.35)",
+    borderColor: colors.border,
     padding: 12,
     marginBottom: 10,
     flexDirection: "row",
@@ -723,43 +709,41 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   completionLeft: { flexDirection: "row", alignItems: "center", flex: 1, marginRight: 10 },
-  completionMeta: { fontSize: 13, color: "#F5F5F0", fontWeight: "700", marginTop: 3 },
+  completionMeta: { fontSize: 13, color: colors.textMuted, fontWeight: "700", marginTop: 3 },
   completeBtn: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#0f172a",
+    backgroundColor: colors.accent,
     paddingHorizontal: 10,
     paddingVertical: 8,
     borderRadius: 999,
   },
-  completeBtnText: { marginLeft: 4, color: "#fff", fontSize: 12, fontWeight: "800" },
+  completeBtnText: { marginLeft: 4, color: colors.accentText, fontSize: 12, fontWeight: "800" },
   emptyCard: {
     borderRadius: 14,
     padding: 14,
     borderWidth: 1,
-    borderColor: "rgba(117,117,117,0.35)",
-    backgroundColor: "rgba(255,255,255,0.03)",
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
     marginBottom: 10,
   },
-  emptyText: { color: "#F5F5F0", fontSize: 14, fontWeight: "600" },
+  emptyText: { color: colors.textMuted, fontSize: 14, fontWeight: "600" },
   lockedBanner: {
-    backgroundColor: "rgba(255,255,255,0.03)",
+    backgroundColor: colors.accentSoft,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "rgba(197,160,112,0.3)",
+    borderColor: colors.border,
     padding: 14,
     marginBottom: 12,
   },
   lockedBannerRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  lockedBannerText: { color: "#F5F5F0", fontWeight: "800", flex: 1 },
+  lockedBannerText: { color: colors.text, fontWeight: "800", flex: 1 },
   lockedBannerBtn: {
     marginTop: 12,
     backgroundColor: colors.accent,
     borderRadius: 12,
     paddingVertical: 12,
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
   },
-  lockedBannerBtnText: { color: "#0A0A0A", fontWeight: "900" },
+  lockedBannerBtnText: { color: colors.accentText, fontWeight: "900" },
 });

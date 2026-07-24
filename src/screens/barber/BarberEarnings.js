@@ -1,12 +1,14 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import { useLightStatusBar } from '../../hooks/useLightStatusBar';
 import { supabase } from "../../supabase/supabaseClient";
-import { colors } from '../../theme/clientTheme';
+import { colors, shadows } from '../../theme/barberTheme';
 import { ensureBarberSubscriptionState, isSubscriptionEligible } from '../../utils/subscriptionState';
 
 export default function BarberEarnings({ navigation }) {
+  useLightStatusBar(colors.background);
+
   const [confirmed, setConfirmed] = useState([]);
   const [pending, setPending] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -239,34 +241,42 @@ export default function BarberEarnings({ navigation }) {
     });
   }, [pageWidth, weekOffsets.length]);
 
-  if (loading) return <ActivityIndicator style={styles.loader} size="large" />;
+  if (loading) return <ActivityIndicator style={styles.loader} size="large" color={colors.accent} />;
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <LinearGradient colors={['#0A0A0A', '#2A1F15']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.mainCard}>
+      <Text style={styles.screenTitle}>Earnings</Text>
+
+      <View style={styles.mainCard}>
         <Text style={styles.mainLabel}>Total Earnings</Text>
         <Text style={styles.mainAmount}>{formatRand(stats.total)}</Text>
         <View style={styles.growthRow}>
-          <Ionicons name="trending-up" size={14} color="#22c55e" />
+          <Ionicons name="trending-up" size={14} color={colors.success} />
           <Text style={styles.growthText}>{`${stats.growth >= 0 ? '+' : ''}${stats.growth.toFixed(0)}% this week`}</Text>
         </View>
-      </LinearGradient>
+      </View>
 
       <View style={styles.statsRow}>
         <View style={styles.statCard}>
-          <Ionicons name="today-outline" size={16} color={colors.textMuted} />
-          <Text style={styles.statLabel}>Today</Text>
+          <View style={styles.statIconBadge}>
+            <Ionicons name="today-outline" size={16} color={colors.accent} />
+          </View>
           <Text style={styles.statValue}>{formatRand(stats.today)}</Text>
+          <Text style={styles.statLabel}>Today</Text>
         </View>
         <View style={styles.statCard}>
-          <Ionicons name="calendar-outline" size={16} color={colors.textMuted} />
-          <Text style={styles.statLabel}>This Week</Text>
+          <View style={styles.statIconBadge}>
+            <Ionicons name="calendar-outline" size={16} color={colors.accent} />
+          </View>
           <Text style={styles.statValue}>{formatRand(stats.week)}</Text>
+          <Text style={styles.statLabel}>This Week</Text>
         </View>
         <View style={styles.statCard}>
-          <Ionicons name="stats-chart-outline" size={16} color={colors.textMuted} />
-          <Text style={styles.statLabel}>This Month</Text>
+          <View style={styles.statIconBadge}>
+            <Ionicons name="stats-chart-outline" size={16} color={colors.accent} />
+          </View>
           <Text style={styles.statValue}>{formatRand(stats.month)}</Text>
+          <Text style={styles.statLabel}>This Month</Text>
         </View>
       </View>
 
@@ -387,7 +397,7 @@ export default function BarberEarnings({ navigation }) {
             </View>
             <View style={styles.txnAmountWrap}>
               <Text style={styles.txnAmount}>{formatRand(toAmount(item.price))}</Text>
-              <Ionicons name="checkmark-circle" size={16} color="#22c55e" />
+              <Ionicons name="checkmark-circle" size={16} color={colors.success} />
             </View>
           </View>
         ))}
@@ -411,54 +421,59 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   content: { padding: 16, paddingBottom: 30 },
   loader: { flex: 1, justifyContent: 'center' },
-  mainCard: { borderRadius: 22, padding: 18, marginBottom: 14 },
-  mainLabel: { color: colors.accent, fontSize: 14, fontWeight: '700' },
-  mainAmount: { color: '#F5F5F0', fontSize: 36, fontWeight: '800', marginTop: 8 },
-  growthRow: { marginTop: 8, flexDirection: 'row', alignItems: 'center' },
-  growthText: { color: '#22c55e', marginLeft: 6, fontSize: 13, fontWeight: '700' },
-  statsRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 14 },
-  statCard: {
-    width: '31.5%',
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    borderRadius: 14,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(197,160,112,0.25)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 1,
+  screenTitle: { fontSize: 24, fontWeight: '800', color: colors.text, marginBottom: 14 },
+  mainCard: {
+    backgroundColor: colors.surface, borderRadius: 20, padding: 18, marginBottom: 14,
+    borderWidth: 1, borderColor: colors.border, ...shadows.card,
   },
-  statLabel: { marginTop: 6, fontSize: 11, color: colors.textMuted, fontWeight: '700' },
-  statValue: { marginTop: 4, fontSize: 14, color: '#F5F5F0', fontWeight: '800' },
-  chartCard: { backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: 'rgba(197,160,112,0.25)', marginBottom: 14 },
-  sectionTitle: { fontSize: 16, fontWeight: '800', color: colors.accent, marginBottom: 10 },
+  mainLabel: { color: colors.textSecondary, fontSize: 14, fontWeight: '700' },
+  mainAmount: { color: colors.text, fontSize: 36, fontWeight: '800', marginTop: 8 },
+  growthRow: { marginTop: 8, flexDirection: 'row', alignItems: 'center' },
+  growthText: { color: colors.success, marginLeft: 6, fontSize: 13, fontWeight: '700' },
+  statsRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 10, marginBottom: 14 },
+  statCard: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadows.card,
+  },
+  statIconBadge: {
+    width: 30, height: 30, borderRadius: 15, backgroundColor: colors.accentSoft,
+    alignItems: 'center', justifyContent: 'center', marginBottom: 8,
+  },
+  statLabel: { marginTop: 2, fontSize: 12, color: colors.textSecondary, fontWeight: '700' },
+  statValue: { fontSize: 16, color: colors.text, fontWeight: '900' },
+  chartCard: {
+    backgroundColor: colors.surface, borderRadius: 20, padding: 16,
+    borderWidth: 1, borderColor: colors.border, marginBottom: 14, ...shadows.card,
+  },
+  sectionTitle: { fontSize: 16, fontWeight: '800', color: colors.text, marginBottom: 10 },
   lockedBanner: {
-    backgroundColor: "rgba(255,255,255,0.03)",
+    backgroundColor: colors.accentSoft,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "rgba(197,160,112,0.3)",
+    borderColor: colors.border,
     padding: 14,
     marginBottom: 12,
   },
-  lockedBannerText: { color: "#F5F5F0", fontWeight: "800", marginBottom: 12 },
+  lockedBannerText: { color: colors.text, fontWeight: "800", marginBottom: 12 },
   lockedBannerBtn: {
     backgroundColor: colors.accent,
     borderRadius: 12,
     paddingVertical: 12,
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
   },
-  lockedBannerBtnText: { color: "#0A0A0A", fontWeight: "900" },
+  lockedBannerBtnText: { color: colors.accentText, fontWeight: "900" },
   weekMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
   weekMetaText: { color: colors.textMuted, fontWeight: '700', fontSize: 12 },
   chartGrid: {
     height: 140,
     borderRadius: 12,
     overflow: 'hidden',
-    backgroundColor: 'rgba(255,255,255,0.02)',
+    backgroundColor: colors.surfaceMuted,
     justifyContent: 'space-between',
   },
   chartGridLine: {
@@ -466,7 +481,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 1,
-    backgroundColor: 'rgba(197,160,112,0.22)',
+    backgroundColor: colors.border,
   },
   chartBarsRow: {
     flexDirection: 'row',
@@ -475,12 +490,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 10,
     paddingVertical: 10,
-  },
-  chartBarCol: {
-    width: '12.5%',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    height: '100%',
   },
   chartBarColTouchable: {
     width: '12.5%',
@@ -493,12 +502,11 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: 9,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(197,160,112,0.15)',
+    backgroundColor: colors.surface,
     overflow: 'hidden',
   },
   chartBarFillSelected: {
-    // Slightly brighter bronze when selected
-    backgroundColor: '#F0D48A',
+    backgroundColor: colors.accentDark,
   },
   chartBarFill: {
     width: '100%',
@@ -508,33 +516,24 @@ const styles = StyleSheet.create({
   },
   chartLabelsRow: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 10, marginTop: 8 },
   chartLabel: { fontSize: 11, color: colors.textMuted, fontWeight: '700' },
-  chartLabelSelected: { color: '#F0D48A', fontWeight: '900' },
+  chartLabelSelected: { color: colors.accent, fontWeight: '900' },
   chartLabelSpacer: { height: 0 },
   dayDetailCard: {
     marginTop: 12,
     borderRadius: 16,
     padding: 14,
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
-    borderColor: 'rgba(197,160,112,0.25)',
+    borderColor: colors.border,
   },
   dayDetailTitle: { color: colors.accent, fontWeight: '900', fontSize: 15, marginBottom: 6 },
-  dayDetailAmount: { color: '#F5F5F0', fontWeight: '900', fontSize: 26, marginBottom: 2 },
+  dayDetailAmount: { color: colors.text, fontWeight: '900', fontSize: 26, marginBottom: 2 },
   dayDetailMeta: { color: colors.textMuted, fontWeight: '700', fontSize: 12 },
   dayDetailHint: { color: colors.textMuted, fontWeight: '700', fontSize: 13 },
-  pendingCard: { backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: 'rgba(197,160,112,0.25)', marginBottom: 14 },
-  pendingBadge: {
-    backgroundColor: 'rgba(197,160,112,0.12)',
-    borderColor: 'rgba(197,160,112,0.35)',
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
+  recentWrap: {
+    backgroundColor: colors.surface, borderRadius: 20, padding: 16,
+    borderWidth: 1, borderColor: colors.border, ...shadows.card,
   },
-  pendingText: { marginLeft: 8, color: colors.accent, fontWeight: '800', fontSize: 13 },
-  recentWrap: { backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: 'rgba(197,160,112,0.25)' },
   recentToggleBtn: {
     marginTop: 10,
     flexDirection: 'row',
@@ -544,16 +543,16 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(197,160,112,0.25)',
-    backgroundColor: 'rgba(255,255,255,0.02)',
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceMuted,
   },
   recentToggleText: { color: colors.accent, fontWeight: '900', fontSize: 13 },
-  txnRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: 'rgba(197,160,112,0.18)' },
-  avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(197,160,112,0.12)' },
-  avatarFallback: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.04)', alignItems: 'center', justifyContent: 'center' },
+  txnRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
+  avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.surfaceMuted },
+  avatarFallback: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.surfaceMuted, alignItems: 'center', justifyContent: 'center' },
   txnInfo: { flex: 1, marginLeft: 10 },
-  txnName: { fontSize: 14, color: '#F5F5F0', fontWeight: '800' },
+  txnName: { fontSize: 14, color: colors.text, fontWeight: '800' },
   txnService: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
   txnAmountWrap: { alignItems: 'flex-end' },
-  txnAmount: { fontSize: 14, fontWeight: '900', color: '#F5F5F0', marginBottom: 2 },
+  txnAmount: { fontSize: 14, fontWeight: '900', color: colors.text, marginBottom: 2 },
 });

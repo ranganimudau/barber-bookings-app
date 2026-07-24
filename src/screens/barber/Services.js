@@ -10,12 +10,14 @@ import {
 import Icon from "react-native-vector-icons/Ionicons";
 import KeyboardDoneBar from "../../components/common/KeyboardDoneBar";
 import { useKeyboardInset } from "../../hooks/useKeyboardInset";
+import { useLightStatusBar } from "../../hooks/useLightStatusBar";
 import { supabase } from "../../supabase/supabaseClient";
 import { fetchServiceImages } from "../../utils/serviceImageGallery";
 import { resolveStorageImageUrl } from "../../utils/storageImageUrl";
-import { colors } from "../../theme/clientTheme";
+import { colors, shadows } from "../../theme/barberTheme";
 
 export default function Services() {
+  useLightStatusBar(colors.background);
   const keyboardInset = useKeyboardInset();
   const listRef = useRef(null);
   const [services, setServices] = useState([]);
@@ -300,7 +302,7 @@ export default function Services() {
                   value={editName}
                   onChangeText={setEditName}
                   placeholder="Service name"
-                  placeholderTextColor="#9aa0aa"
+                  placeholderTextColor={colors.textMuted}
                   returnKeyType="done"
                   onSubmitEditing={Keyboard.dismiss}
                   onFocus={scrollFormIntoView}
@@ -312,7 +314,7 @@ export default function Services() {
                   onChangeText={setEditPrice}
                   keyboardType="numeric"
                   placeholder="Price (R)"
-                  placeholderTextColor="#9aa0aa"
+                  placeholderTextColor={colors.textMuted}
                   returnKeyType="done"
                   onSubmitEditing={Keyboard.dismiss}
                   onFocus={scrollFormIntoView}
@@ -324,7 +326,7 @@ export default function Services() {
                   onChangeText={setEditDuration}
                   keyboardType="numeric"
                   placeholder="Duration (minutes)"
-                  placeholderTextColor="#9aa0aa"
+                  placeholderTextColor={colors.textMuted}
                   returnKeyType="done"
                   onSubmitEditing={Keyboard.dismiss}
                   onFocus={scrollFormIntoView}
@@ -381,7 +383,7 @@ export default function Services() {
               <View style={styles.addFields}>
                 <TextInput
                   placeholder="Service name (e.g. Haircut)"
-                  placeholderTextColor="#97A0AF"
+                  placeholderTextColor={colors.textMuted}
                   value={newServiceName}
                   onChangeText={setNewServiceName}
                   style={styles.addInput}
@@ -393,7 +395,7 @@ export default function Services() {
                   <Text style={styles.pricePrefix}>R</Text>
                   <TextInput
                     placeholder="Price"
-                    placeholderTextColor="#97A0AF"
+                    placeholderTextColor={colors.textMuted}
                     value={newServicePrice}
                     onChangeText={setNewServicePrice}
                     keyboardType="numeric"
@@ -404,10 +406,10 @@ export default function Services() {
                   />
                 </View>
                 <View style={styles.priceInputWrap}>
-                  <Icon name="time-outline" size={15} color="#4b5563" />
+                  <Icon name="time-outline" size={15} color={colors.textMuted} />
                   <TextInput
                     placeholder="Duration (minutes)"
-                    placeholderTextColor="#97A0AF"
+                    placeholderTextColor={colors.textMuted}
                     value={newServiceDuration}
                     onChangeText={setNewServiceDuration}
                     keyboardType="numeric"
@@ -500,40 +502,40 @@ export default function Services() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, backgroundColor: colors.background },
-  header: { fontSize: 26, fontWeight: "800", marginBottom: 20, color: colors.accent },
-  card: { flexDirection: "row", padding: 15, backgroundColor: "rgba(255,255,255,0.03)", borderRadius: 15, marginBottom: 12, elevation: 1, borderWidth: 1, borderColor: "rgba(197,160,112,0.25)" },
+  header: { fontSize: 24, fontWeight: "800", marginBottom: 20, color: colors.text },
+  card: { flexDirection: "row", padding: 15, backgroundColor: colors.surface, borderRadius: 16, marginBottom: 12, borderWidth: 1, borderColor: colors.border, ...shadows.card },
   infoRow: { flexDirection: 'row', alignItems: 'center', flex: 1 },
   serviceTextWrap: { marginLeft: 15, flex: 1 },
   serviceName: { fontSize: 17, fontWeight: "800", color: colors.text },
   priceText: { color: colors.accent, fontWeight: "800" },
   durationText: { fontSize: 12, color: colors.textMuted, marginTop: 1 },
   galleryCountText: { fontSize: 12, color: colors.textMuted },
-  thumb: { width: 65, height: 65, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: 'rgba(197,160,112,0.2)' },
+  thumb: { width: 65, height: 65, borderRadius: 12, backgroundColor: colors.surfaceMuted, borderWidth: 1, borderColor: colors.border },
   thumbPlaceholder: {
     width: 65,
     height: 65,
     borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: colors.surfaceMuted,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(197,160,112,0.25)',
+    borderColor: colors.border,
     borderStyle: 'dashed',
   },
   inlineFieldLabel: { fontSize: 11, color: colors.textMuted, fontWeight: '700' },
   inlineInput: { borderBottomWidth: 1, borderColor: colors.border, padding: 5, color: colors.text },
   actions: { flexDirection: "row", alignItems: 'center' },
   iconBtn: { padding: 8 },
-  addContainer: { marginTop: 20, padding: 20, backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 20, borderStyle: 'dashed', borderWidth: 1, borderColor: 'rgba(197,160,112,0.35)' },
+  addContainer: { marginTop: 20, padding: 20, backgroundColor: colors.surface, borderRadius: 20, borderStyle: 'dashed', borderWidth: 1, borderColor: colors.borderStrong },
   addTitle: { fontWeight: '800', fontSize: 18, marginBottom: 15, color: colors.text },
   addRow: { flexDirection: 'row' },
-  addImageTile: { width: 90, height: 90, backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 15, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(197,160,112,0.2)' },
+  addImageTile: { width: 90, height: 90, backgroundColor: colors.surfaceMuted, borderRadius: 15, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: colors.border },
   addTileImage: { width: 90, height: 90, borderRadius: 15 },
   addFields: { flex: 1, marginLeft: 15 },
-  addInput: { backgroundColor: 'rgba(255,255,255,0.03)', padding: 10, borderRadius: 10, color: colors.text },
+  addInput: { backgroundColor: colors.surfaceMuted, padding: 10, borderRadius: 10, color: colors.text },
   priceInputWrap: {
     marginTop: 8,
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 10,
     flexDirection: 'row',
     alignItems: 'center',
@@ -541,17 +543,17 @@ const styles = StyleSheet.create({
   },
   pricePrefix: { fontSize: 16, fontWeight: '800', color: colors.accent, marginRight: 6 },
   priceInput: { flex: 1, paddingVertical: 10, color: colors.text },
-  addServiceBtn: { backgroundColor: '#0A0A0A', padding: 10, borderRadius: 10, marginTop: 10, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(197,160,112,0.35)' },
+  addServiceBtn: { backgroundColor: colors.accent, padding: 10, borderRadius: 10, marginTop: 10, alignItems: 'center' },
   galleryModalContainer: { flex: 1, backgroundColor: colors.background },
   galleryModalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderColor: 'rgba(197,160,112,0.25)',
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
   },
-  galleryTitle: { fontSize: 24, fontWeight: '800', marginLeft: 12, color: colors.text },
+  galleryTitle: { fontSize: 22, fontWeight: '800', marginLeft: 12, color: colors.text },
   headerAddBtn: {
     marginLeft: 'auto',
     flexDirection: 'row',
@@ -561,22 +563,23 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 10,
   },
-  headerAddBtnText: { color: '#fff', fontWeight: '700', marginLeft: 4 },
+  headerAddBtnText: { color: colors.accentText, fontWeight: '700', marginLeft: 4 },
   galleryCard: {
     marginHorizontal: 14,
     marginTop: 14,
     padding: 12,
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: colors.surface,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: 'rgba(197,160,112,0.25)',
+    borderColor: colors.border,
+    ...shadows.card,
   },
   galleryImage: { width: '100%', height: 230, borderRadius: 16 },
   coverBadge: {
     position: 'absolute',
     top: 22,
     right: 22,
-    backgroundColor: '#17a05d',
+    backgroundColor: colors.success,
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 5,
@@ -594,10 +597,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flexDirection: 'row',
   },
-  coverBtnActive: { backgroundColor: '#17a05d' },
+  coverBtnActive: { backgroundColor: colors.success },
   coverBtnText: { color: '#fff', fontWeight: '700', marginLeft: 6, fontSize: 13 },
   delBtn: {
-    backgroundColor: '#ef4b4b',
+    backgroundColor: colors.error,
     paddingVertical: 11,
     borderRadius: 12,
     flex: 0.18,
@@ -616,5 +619,5 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     borderRadius: 12,
   },
-  emptyAddBtnText: { color: '#fff', fontWeight: '700', marginLeft: 6 }
+  emptyAddBtnText: { color: colors.accentText, fontWeight: '700', marginLeft: 6 }
 });

@@ -23,17 +23,19 @@ function SettingsStack() {
     <Stack.Navigator
       screenOptions={{
         headerStyle: {
-          backgroundColor: '#0A0A0A',
+          backgroundColor: barberColors.surface,
           elevation: 0,
           shadowOpacity: 0,
-          borderBottomWidth: 0,
+          borderBottomWidth: 1,
+          borderBottomColor: barberColors.border,
         },
-        headerTintColor: '#C5A070',
-        headerTitleStyle: { color: '#C5A070', fontWeight: '700' },
+        headerTintColor: barberColors.text,
+        headerTitleStyle: { color: barberColors.text, fontWeight: '700' },
         headerShadowVisible: false,
       }}
     >
-      <Stack.Screen name="BarberSettings" component={BarberSettings} options={{ title: "Settings" }} />
+      {/* Root of the stack has its own in-screen title — hide the duplicate stack header. */}
+      <Stack.Screen name="BarberSettings" component={BarberSettings} options={{ title: "Settings", headerShown: false }} />
       <Stack.Screen name="EditProfile" component={EditProfile} options={{ title: "Edit Shop Info" }} />
       <Stack.Screen name="Services" component={Services} options={{ title: "Manage Services" }} />
       <Stack.Screen name="SubscriptionSettings" component={SubscriptionSettings} options={{ title: "Subscription" }} />
@@ -61,15 +63,8 @@ export default function BarberStack() {
           }
           return <Ionicons name={iconName} size={size} color={color} />;
         },
-        headerStyle: {
-          backgroundColor: '#0A0A0A',
-          elevation: 0,
-          shadowOpacity: 0,
-          borderBottomWidth: 0,
-        },
-        headerTintColor: '#C5A070',
-        headerTitleStyle: { color: '#C5A070', fontWeight: '700' },
-        headerShadowVisible: false,
+        // Every tab hides its own outer header (each screen has its own
+        // in-content title) — no header style needed at this level.
         tabBarStyle: {
           backgroundColor: barberColors.surface,
           borderTopWidth: 1,
@@ -82,12 +77,12 @@ export default function BarberStack() {
       })}
     >
       <Tab.Screen name="Dashboard" component={BarberDashboard} options={{ headerShown: false }} />
-      <Tab.Screen name="Bookings" component={Appointments} />
-      <Tab.Screen name="Earnings" component={BarberEarnings} />
+      <Tab.Screen name="Bookings" component={Appointments} options={{ headerShown: false }} />
+      <Tab.Screen name="Earnings" component={BarberEarnings} options={{ headerShown: false }} />
       <Tab.Screen
         name="Availability"
         component={Availability}
-        options={{ title: "Availability" }}
+        options={{ title: "Availability", headerShown: false }}
       />
       <Tab.Screen 
         name="SettingsGroup" 

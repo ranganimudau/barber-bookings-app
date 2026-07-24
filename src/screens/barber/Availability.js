@@ -3,11 +3,14 @@ import React, { useEffect, useState } from 'react';
 import { Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 import Icon from 'react-native-vector-icons/Ionicons';
+import { useLightStatusBar } from '../../hooks/useLightStatusBar';
 import { supabase } from '../../supabase/supabaseClient';
-import { colors } from '../../theme/clientTheme';
+import { colors, shadows } from '../../theme/barberTheme';
 import { ensureBarberSubscriptionState, isSubscriptionEligible } from '../../utils/subscriptionState';
 
 export default function Availability({ navigation }) {
+  useLightStatusBar(colors.background);
+
   const today = new Date().toISOString().split('T')[0]; // Get current date in YYYY-MM-DD format
   const [selectedDate, setSelectedDate] = useState('');
   const [loading, setLoading] = useState(false);
@@ -39,7 +42,7 @@ export default function Availability({ navigation }) {
     };
     loadSubscription();
   }, []);
-  
+
   // Initialize times as Date objects for the picker
   const [times, setTimes] = useState({
     opening: new Date(new Date().setHours(8, 0, 0, 0)),
@@ -47,8 +50,8 @@ export default function Availability({ navigation }) {
     lunchStart: new Date(new Date().setHours(13, 0, 0, 0)),
     lunchEnd: new Date(new Date().setHours(14, 0, 0, 0)),
   });
-  
-  const [showPicker, setShowPicker] = useState(null); 
+
+  const [showPicker, setShowPicker] = useState(null);
 
   // Load existing specific settings for the selected day if they exist
   useEffect(() => {
@@ -132,7 +135,7 @@ export default function Availability({ navigation }) {
       <Text style={styles.timeFieldLabel}>{label}</Text>
       <View style={styles.timeValueRow}>
         <Text style={styles.timeText}>{formatTime(times[key])}</Text>
-        <Icon name="chevron-down" size={16} color="#4b5563" />
+        <Icon name="chevron-down" size={16} color={colors.textMuted} />
       </View>
     </TouchableOpacity>
   );
@@ -158,7 +161,7 @@ export default function Availability({ navigation }) {
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      
+
       const { error } = await supabase
         .from('barber_availability')
         .upsert(
@@ -190,6 +193,8 @@ export default function Availability({ navigation }) {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+      <Text style={styles.screenTitle}>Availability</Text>
+
       {showSubscriptionBanner ? (
         <View style={styles.subBanner}>
           <View style={styles.subBannerLeft}>
@@ -210,17 +215,23 @@ export default function Availability({ navigation }) {
         <Calendar
           minDate={today} // Prevents selecting dates in the past
           onDayPress={(day) => setSelectedDate(day.dateString)}
-          markedDates={{ 
-            [selectedDate]: { selected: true, selectedColor: '#111827' },
-            [today]: { marked: true, dotColor: '#ef4444' }
+          markedDates={{
+            [selectedDate]: { selected: true, selectedColor: colors.accent },
+            [today]: { marked: true, dotColor: colors.error }
           }}
           theme={{
+            calendarBackground: colors.surface,
+            dayTextColor: colors.text,
+            monthTextColor: colors.text,
+            textDisabledColor: colors.textMuted,
             todayTextColor: colors.accent,
             arrowColor: colors.accent,
-            selectedDayBackgroundColor: '#0A0A0A',
+            selectedDayBackgroundColor: colors.accent,
+            selectedDayTextColor: colors.accentText,
             textDayFontWeight: '600',
             textMonthFontWeight: '700',
             textDayHeaderFontWeight: '600',
+            textSectionTitleColor: colors.textMuted,
           }}
         />
       </View>
@@ -281,7 +292,7 @@ export default function Availability({ navigation }) {
               This date has {activeBookingCount} active booking(s). You can still edit hours, but full day-off is blocked.
             </Text>
           ) : null}
-          
+
           <Text style={styles.label}>Shift Hours</Text>
           <View style={styles.row}>
             {renderTimeField('opening', 'Start')}
@@ -306,14 +317,14 @@ export default function Availability({ navigation }) {
                 onChange={onTimeChange}
                 minuteInterval={5}
                 textColor={colors.text}
-                themeVariant="dark"
+                themeVariant="light"
                 style={styles.timePicker}
               />
             </View>
           )}
 
-          <TouchableOpacity 
-            style={[styles.saveBtn, loading && { opacity: 0.7 }]} 
+          <TouchableOpacity
+            style={[styles.saveBtn, loading && { opacity: 0.7 }]}
             onPress={handleSaveAvailability}
             disabled={loading}
           >
@@ -334,57 +345,56 @@ export default function Availability({ navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   contentContainer: { paddingBottom: 24 },
+  screenTitle: { fontSize: 24, fontWeight: '800', color: colors.text, marginHorizontal: 14, marginTop: 16 },
   calendarWrap: {
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: colors.surface,
     marginHorizontal: 14,
     marginTop: 14,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(197,160,112,0.25)',
+    borderColor: colors.border,
     overflow: 'hidden',
+    ...shadows.card,
   },
   subBanner: {
-    marginBottom: 12,
+    marginHorizontal: 14,
+    marginTop: 12,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "rgba(197,160,112,0.35)",
-    backgroundColor: "rgba(255,255,255,0.04)",
+    borderColor: colors.border,
+    backgroundColor: colors.accentSoft,
     padding: 10,
     flexDirection: "row",
     alignItems: "center",
   },
   subBannerLeft: { flex: 1, flexDirection: "row", alignItems: "center", marginRight: 8, gap: 8 },
-  subBannerText: { color: "#F5F5F0", fontSize: 12, fontWeight: "800", lineHeight: 16, flex: 1 },
+  subBannerText: { color: colors.text, fontSize: 12, fontWeight: "800", lineHeight: 16, flex: 1 },
   subBannerBtn: {
     borderRadius: 10,
     backgroundColor: colors.accent,
     paddingVertical: 8,
     paddingHorizontal: 10,
   },
-  subBannerBtnText: { color: "#0A0A0A", fontSize: 11, fontWeight: "900" },
+  subBannerBtnText: { color: colors.accentText, fontSize: 11, fontWeight: "900" },
   card: {
     padding: 18,
     marginHorizontal: 14,
     marginTop: 14,
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(197,160,112,0.25)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-    elevation: 1,
+    borderColor: colors.border,
+    ...shadows.card,
   },
-  title: { fontSize: 22, fontWeight: '800', marginBottom: 18, textAlign: 'center', color: colors.accent },
+  title: { fontSize: 18, fontWeight: '800', marginBottom: 18, textAlign: 'center', color: colors.text },
   unavailableWrap: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(197,160,112,0.2)',
+    borderColor: colors.border,
     padding: 12,
     marginBottom: 12,
   },
@@ -396,94 +406,91 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(197,160,112,0.35)',
+    borderColor: colors.borderStrong,
     paddingVertical: 8,
     paddingHorizontal: 14,
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: colors.surface,
   },
-  toggleActive: { backgroundColor: '#000', borderColor: '#000' },
+  toggleActive: { backgroundColor: colors.text, borderColor: colors.text },
   toggleText: { fontWeight: '700', color: colors.textSecondary },
-  toggleTextActive: { color: '#fff' },
+  toggleTextActive: { color: colors.white },
   warningText: {
     marginBottom: 10,
-    color: '#C5A070',
+    color: colors.pending,
     fontSize: 13,
     fontWeight: '600',
-    backgroundColor: 'rgba(197,160,112,0.1)',
-    borderColor: 'rgba(197,160,112,0.35)',
+    backgroundColor: colors.pendingBg,
+    borderColor: colors.border,
     borderWidth: 1,
     borderRadius: 10,
     padding: 10,
   },
-  label: { fontSize: 14, fontWeight: '700', color: colors.textMuted, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.3 },
+  label: { fontSize: 13, fontWeight: '700', color: colors.textMuted, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.3 },
   row: { flexDirection: 'row', alignItems: 'center', marginBottom: 20, justifyContent: 'space-between' },
   timeField: {
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     borderWidth: 1.2,
-    borderColor: 'rgba(197,160,112,0.25)',
+    borderColor: colors.border,
     flex: 0.45,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
   timeFieldLabel: { fontSize: 12, color: colors.textMuted, fontWeight: '600', marginBottom: 4 },
   timeValueRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  disabledTimeBtn: { opacity: 0.75, backgroundColor: 'rgba(255,255,255,0.03)', borderColor: 'rgba(197,160,112,0.15)' },
-  timeText: { fontSize: 22, fontWeight: '800', color: colors.text },
+  disabledTimeBtn: { opacity: 0.6, backgroundColor: colors.surfaceMuted, borderColor: colors.border },
+  timeText: { fontSize: 20, fontWeight: '800', color: colors.text },
   toText: { fontSize: 14, color: colors.textMuted, fontWeight: '700' },
   saveBtn: {
-    backgroundColor: '#0A0A0A',
-    borderWidth: 1,
-    borderColor: 'rgba(197,160,112,0.45)',
-    padding: 18,
+    backgroundColor: colors.accent,
+    padding: 16,
     borderRadius: 12,
     alignItems: 'center',
     marginTop: 10,
   },
-  saveBtnText: { color: colors.accent, fontWeight: 'bold', fontSize: 16 },
+  saveBtnText: { color: colors.accentText, fontWeight: 'bold', fontSize: 16 },
   pickerWrap: {
     marginTop: 4,
     marginBottom: 10,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: 'rgba(197,160,112,0.25)',
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceMuted,
     overflow: 'hidden',
   },
   timePicker: {
     height: 80,
     width: '100%',
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: colors.surfaceMuted,
   },
   placeholder: {
     marginHorizontal: 14,
     marginTop: 14,
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(197,160,112,0.25)',
+    borderColor: colors.border,
     padding: 30,
     alignItems: 'center',
+    ...shadows.card,
   },
   placeholderText: { color: colors.textMuted, textAlign: 'center', fontSize: 15, lineHeight: 22 },
   lockedBanner: {
-    backgroundColor: "rgba(255,255,255,0.03)",
+    backgroundColor: colors.accentSoft,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "rgba(197,160,112,0.3)",
+    borderColor: colors.border,
     padding: 14,
     marginBottom: 12,
   },
   lockedBannerRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  lockedBannerText: { color: "#F5F5F0", fontWeight: "800", flex: 1 },
+  lockedBannerText: { color: colors.text, fontWeight: "800", flex: 1 },
   lockedBannerBtn: {
     marginTop: 12,
     backgroundColor: colors.accent,
     borderRadius: 12,
     paddingVertical: 12,
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
   },
-  lockedBannerBtnText: { color: "#0A0A0A", fontWeight: "900" },
+  lockedBannerBtnText: { color: colors.accentText, fontWeight: "900" },
 });

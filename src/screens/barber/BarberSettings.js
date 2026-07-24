@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import { useLightStatusBar } from '../../hooks/useLightStatusBar';
 import { supabase } from "../../supabase/supabaseClient";
-import { colors } from '../../theme/clientTheme';
+import { colors, shadows } from '../../theme/barberTheme';
 import { invokeDeleteBarberAccount } from "../../utils/invokeDeleteBarberAccount";
 
 export default function BarberSettings({ navigation }) {
+  useLightStatusBar(colors.background);
+
   const [deletingAccount, setDeletingAccount] = useState(false);
 
   const handleDeleteAccountPermanently = () => {
@@ -68,6 +71,8 @@ export default function BarberSettings({ navigation }) {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <Text style={styles.screenTitle}>Settings</Text>
+
       <View style={styles.headerCard}>
         <Text style={styles.headerTitle}>Business Settings</Text>
         <Text style={styles.headerSubtitle}>
@@ -78,9 +83,9 @@ export default function BarberSettings({ navigation }) {
       <Text style={styles.sectionTitle}>Manage Shop</Text>
       <View style={styles.menuGroup}>
         {menuItems.map((item, index) => (
-          <TouchableOpacity 
-            key={index} 
-            style={[styles.menuItem, index === menuItems.length - 1 && styles.menuItemLast]} 
+          <TouchableOpacity
+            key={index}
+            style={[styles.menuItem, index === menuItems.length - 1 && styles.menuItemLast]}
             onPress={() => navigation.navigate(item.screen)}
             activeOpacity={0.8}
           >
@@ -118,7 +123,7 @@ export default function BarberSettings({ navigation }) {
       </View>
 
       <TouchableOpacity style={styles.logoutBtn} onPress={() => supabase.auth.signOut()} activeOpacity={0.85}>
-        <Ionicons name="log-out-outline" size={22} color="#d12f2f" />
+        <Ionicons name="log-out-outline" size={22} color={colors.error} />
         <Text style={styles.logoutText}>Logout</Text>
       </TouchableOpacity>
     </ScrollView>
@@ -128,23 +133,27 @@ export default function BarberSettings({ navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   content: { padding: 16, paddingTop: 20, paddingBottom: 28 },
+  screenTitle: { fontSize: 24, fontWeight: '800', color: colors.text, marginBottom: 14 },
   headerCard: {
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: colors.surface,
     borderRadius: 18,
     padding: 16,
     borderWidth: 1,
-    borderColor: 'rgba(197,160,112,0.25)',
+    borderColor: colors.border,
     marginBottom: 18,
+    ...shadows.card,
   },
-  headerTitle: { fontSize: 22, fontWeight: '800', color: colors.accent },
+  headerTitle: { fontSize: 20, fontWeight: '800', color: colors.text },
   headerSubtitle: { marginTop: 6, fontSize: 13, color: colors.textMuted, lineHeight: 18 },
   sectionTitle: { fontSize: 12, fontWeight: '700', color: colors.textMuted, marginBottom: 8, marginLeft: 4, letterSpacing: 0.5, textTransform: 'uppercase' },
   menuGroup: {
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: colors.surface,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: 'rgba(197,160,112,0.25)',
+    borderColor: colors.border,
     overflow: 'hidden',
+    marginBottom: 18,
+    ...shadows.card,
   },
   menuItem: {
     flexDirection: 'row',
@@ -153,7 +162,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.06)',
+    borderBottomColor: colors.border,
   },
   menuItemLast: { borderBottomWidth: 0 },
   menuLabel: { flexDirection: 'row', alignItems: 'center' },
@@ -161,26 +170,26 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: colors.accentSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  menuText: { fontSize: 16, marginLeft: 12, color: '#F5F5F0', fontWeight: '700' },
+  menuText: { fontSize: 16, marginLeft: 12, color: colors.text, fontWeight: '700' },
   dangerCard: {
-    backgroundColor: 'rgba(209,47,47,0.08)',
+    backgroundColor: colors.errorBg,
     borderRadius: 18,
     padding: 16,
     borderWidth: 1,
-    borderColor: 'rgba(209,47,47,0.4)',
+    borderColor: colors.error,
     marginBottom: 8,
   },
-  dangerBody: { fontSize: 13, color: colors.textMuted, lineHeight: 19, marginBottom: 14 },
+  dangerBody: { fontSize: 13, color: colors.textSecondary, lineHeight: 19, marginBottom: 14 },
   deleteAccountBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
-    backgroundColor: '#8b1c1c',
+    backgroundColor: colors.error,
     paddingVertical: 14,
     borderRadius: 14,
   },
@@ -192,10 +201,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 20,
     paddingVertical: 14,
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: 'rgba(209,47,47,0.35)',
+    borderColor: colors.error,
     borderRadius: 14,
   },
-  logoutText: { color: '#d12f2f', fontWeight: '700', marginLeft: 8, fontSize: 16 }
+  logoutText: { color: colors.error, fontWeight: '700', marginLeft: 8, fontSize: 16 }
 });
