@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from "react-native";
+import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLightStatusBar } from "../../hooks/useLightStatusBar";
 import { colors, shadows } from "../../theme/barberTheme";
@@ -10,7 +10,7 @@ const HERO_IMAGES = [
   require("../../../assets/images/welcome/hero-nails.webp"),
   require("../../../assets/images/welcome/barber.jpg"),
 ];
-const HERO_HEIGHT = 200;
+const HERO_HEIGHT = 300;
 const AUTO_ADVANCE_MS = 3500;
 
 function HeroCarousel() {
@@ -91,19 +91,6 @@ export default function Welcome({ navigation }) {
         <TouchableOpacity style={styles.secondaryBtn} onPress={() => navigation.navigate("Login")} activeOpacity={0.9}>
           <Text style={styles.secondaryBtnText}>Log in</Text>
         </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.ghostBtn}
-          onPress={() =>
-            Alert.alert(
-              "Guest preview",
-              "Quick guest preview mode is coming soon. For now, create an account or sign in to continue."
-            )
-          }
-          activeOpacity={0.85}
-        >
-          <Text style={styles.ghostBtnText}>Explore as guest (preview)</Text>
-        </TouchableOpacity>
       </View>
     </View>
   );
@@ -156,6 +143,4 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   secondaryBtnText: { color: colors.accent, fontWeight: "800", fontSize: 15 },
-  ghostBtn: { alignItems: "center", paddingVertical: 10 },
-  ghostBtnText: { color: colors.textMuted, fontSize: 13, fontWeight: "700", textDecorationLine: "underline" },
 });
