@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   AppState,
@@ -61,7 +62,15 @@ export default function SubscriptionPaywall({ navigation, route }) {
       if (!user) return;
 
       const state = await withTimeout(ensureBarberSubscriptionState(user.id), LOAD_TIMEOUT_MS);
-      if (state) setSubState(state);
+      if (state) {
+        setSubState(state);
+        if (state.subscription_status === "active") {
+          // Nothing left to complete — drop any leftover checkout link from
+          // an earlier attempt on this same screen instance.
+          setCheckoutUrl(null);
+          setCheckoutReference(null);
+        }
+      }
     } catch (e) {
       Alert.alert("Error", e?.message || "Could not load subscription state");
     } finally {
@@ -69,17 +78,28 @@ export default function SubscriptionPaywall({ navigation, route }) {
     }
   };
 
-  useEffect(() => {
-    load();
-  }, []);
+  // Reloads every time this screen gains focus — not just on first mount.
+  // It lives in the root stack rather than a tab, so re-navigating to it
+  // (e.g. "Manage payment" from Settings) often brings an already-mounted
+  // instance back into focus instead of remounting it; without this, a
+  // completed payment made on a previous visit would keep showing stale
+  // trial/locked state until something else happened to trigger a reload.
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [])
+  );
 
   const openedFromSettings = !!route?.params?.fromSettings;
 
   useEffect(() => {
-    if (!openedFromSettings && !loading && subState?.status === "active") {
+    // subState has no "status" field (it's shop_status/subscription_status)
+    // — this never fired before, so barbers who paid via the trial/lock
+    // flow (not opened from Settings) never got auto-continued once eligible.
+    if (!openedFromSettings && !loading && eligible) {
       navigation.reset({ index: 0, routes: [{ name: "BarberDashboard" }] });
     }
-  }, [openedFromSettings, loading, subState, navigation]);
+  }, [openedFromSettings, loading, eligible, navigation]);
 
   // PayFast's ITN webhook updates the DB server-to-server, so there's no
   // client-callable "verify payment" step — just re-fetch state when the
@@ -231,7 +251,7 @@ export default function SubscriptionPaywall({ navigation, route }) {
         </View>
       ) : null}
 
-      {hasUsedTrial ? (
+      {hasUsedTrial && subState?.subscription_status !== "active" ? (
         <View style={[styles.optionCard, trialActive && styles.optionCardActive]}>
           <View style={styles.optionHeader}>
             <View style={styles.optionTitleWrap}>
