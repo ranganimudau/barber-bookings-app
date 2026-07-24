@@ -99,7 +99,7 @@ export default function Signup({ navigation }) {
       >
         <View style={styles.heroBadge}>
           <Icon name="sparkles-outline" size={14} color={colors.accent} />
-          <Text style={styles.heroBadgeText}>BarberApp Pro</Text>
+          <Text style={styles.heroBadgeText}>SkoonBook</Text>
         </View>
 
         <Text style={styles.title}>Create your account</Text>
