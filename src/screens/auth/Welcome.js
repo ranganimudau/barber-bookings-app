@@ -114,7 +114,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
     paddingHorizontal: 24,
-    justifyContent: "center",
   },
   content: { alignItems: "center" },
   logoBadge: {
