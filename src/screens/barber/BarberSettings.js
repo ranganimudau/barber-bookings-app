@@ -74,7 +74,7 @@ export default function BarberSettings({ navigation }) {
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={[styles.content, { paddingTop: Math.max(insets.top, 16) + 28 }]}
+      contentContainerStyle={[styles.content, { paddingTop: Math.max(insets.top, 24) + 44 }]}
       bounces={false}
       overScrollMode="never"
     >

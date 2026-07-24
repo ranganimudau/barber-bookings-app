@@ -200,7 +200,7 @@ export default function Availability({ navigation }) {
       bounces={false}
       overScrollMode="never"
     >
-      <Text style={[styles.screenTitle, { marginTop: Math.max(insets.top, 16) + 28 }]}>Availability</Text>
+      <Text style={[styles.screenTitle, { marginTop: Math.max(insets.top, 24) + 44 }]}>Availability</Text>
 
       {showSubscriptionBanner ? (
         <View style={styles.subBanner}>

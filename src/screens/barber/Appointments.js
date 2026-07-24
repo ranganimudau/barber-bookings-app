@@ -446,7 +446,7 @@ export default function Appointments({ navigation }) {
     <View style={styles.screen}>
       <ScrollView
         style={styles.container}
-        contentContainerStyle={[styles.content, { paddingTop: Math.max(insets.top, 16) + 28 }]}
+        contentContainerStyle={[styles.content, { paddingTop: Math.max(insets.top, 24) + 44 }]}
         bounces={false}
         overScrollMode="never"
         refreshControl={
