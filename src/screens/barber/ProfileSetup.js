@@ -13,10 +13,12 @@ import {
   Text, TextInput, TouchableOpacity, View
 } from "react-native";
 import MapView, { Marker } from 'react-native-maps';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from "react-native-vector-icons/Ionicons";
 import KeyboardDoneBar from "../../components/common/KeyboardDoneBar";
+import { useLightStatusBar } from "../../hooks/useLightStatusBar";
 import { supabase } from "../../supabase/supabaseClient";
-import { colors } from "../../theme/clientTheme";
+import { colors, shadows } from "../../theme/barberTheme";
 import { geocodeAddressString } from "../../utils/geocodeAddress";
 import { resolveStorageImageUrl } from "../../utils/storageImageUrl";
 
@@ -58,6 +60,8 @@ async function uploadServiceCoverImage(serviceId, localUri) {
 }
 
 export default function ProfileSetup({ navigation }) {
+  useLightStatusBar(colors.background);
+  const insets = useSafeAreaInsets();
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState(null);
   const [shopName, setShopName] = useState("");
@@ -506,8 +510,10 @@ export default function ProfileSetup({ navigation }) {
       keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={[styles.container, { paddingBottom: scrollPadBottom }]}
+      bounces={false}
+      overScrollMode="never"
     >
-      <Text style={styles.header}>Shop Setup</Text>
+      <Text style={[styles.header, { marginTop: Math.max(insets.top, 24) + 24 }]}>Shop Setup</Text>
       
       <View style={styles.section}>
         <View style={styles.avatarContainer}>
@@ -580,7 +586,7 @@ export default function ProfileSetup({ navigation }) {
         <View style={{ flex: 1, backgroundColor: colors.background }}>
             <View style={styles.modalHeader}>
               <TouchableOpacity onPress={() => setShowPreview(false)} style={styles.modalBackButton}>
-                <Icon name="chevron-back" size={26} color="#fff" />
+                <Icon name="chevron-back" size={26} color={colors.text} />
               </TouchableOpacity>
               <View style={{ flex: 1 }}>
                 <Text style={styles.modalHeaderTitle}>Place pin on your shop</Text>
@@ -675,7 +681,7 @@ export default function ProfileSetup({ navigation }) {
                   onPress={() => clearServiceImageAtIndex(index)}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
-                  <Icon name="close-circle" size={22} color="#c62828" />
+                  <Icon name="close-circle" size={22} color={colors.error} />
                 </TouchableOpacity>
               ) : null}
             </View>
@@ -710,7 +716,7 @@ export default function ProfileSetup({ navigation }) {
               />
             </View>
             <TouchableOpacity onPress={() => handleDeleteService(index)} style={styles.deleteServiceBtn}>
-              <Icon name="trash-outline" size={20} color="#900" />
+              <Icon name="trash-outline" size={20} color={colors.error} />
             </TouchableOpacity>
           </View>
         </View>
@@ -736,7 +742,7 @@ export default function ProfileSetup({ navigation }) {
               onPress={() => setNewServiceImageUri(null)}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <Icon name="close-circle" size={22} color="#c62828" />
+              <Icon name="close-circle" size={22} color={colors.error} />
             </TouchableOpacity>
           ) : null}
         </View>
@@ -777,7 +783,7 @@ export default function ProfileSetup({ navigation }) {
       </View>
 
       <TouchableOpacity style={styles.button} onPress={handleSaveProfile} disabled={loading}>
-        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Finish & Go Live</Text>}
+        {loading ? <ActivityIndicator color={colors.accentText} /> : <Text style={styles.buttonText}>Finish & Go Live</Text>}
       </TouchableOpacity>
     </ScrollView>
     <KeyboardDoneBar inset={keyboardPad} />
@@ -788,35 +794,35 @@ export default function ProfileSetup({ navigation }) {
 const styles = StyleSheet.create({
   keyboardRoot: { flex: 1, backgroundColor: colors.background },
   container: { padding: 25, paddingBottom: 25, backgroundColor: colors.background, flexGrow: 1 },
-  header: { fontSize: 26, fontWeight: "800", marginBottom: 20, marginTop: 40, color: colors.accent },
+  header: { fontSize: 26, fontWeight: "800", marginBottom: 20, color: colors.text },
   section: { marginBottom: 20 },
-  label: { fontSize: 18, fontWeight: "800", marginBottom: 15, color: '#F5F5F0' },
-  input: { borderWidth: 1, borderColor: "rgba(197,160,112,0.2)", padding: 12, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.03)", marginBottom: 10, color: colors.text },
+  label: { fontSize: 18, fontWeight: "800", marginBottom: 15, color: colors.text },
+  input: { borderWidth: 1, borderColor: colors.border, padding: 12, borderRadius: 12, backgroundColor: colors.surface, marginBottom: 10, color: colors.text },
   textArea: { height: 60, textAlignVertical: 'top' },
-  previewBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.03)', padding: 12, borderRadius: 10, marginTop: 5, borderWidth: 1, borderColor: 'rgba(197,160,112,0.25)' },
+  previewBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, padding: 12, borderRadius: 10, marginTop: 5, borderWidth: 1, borderColor: colors.border },
   previewBtnText: { marginLeft: 10, fontWeight: '700', color: colors.text },
-  modalHeader: { height: 80, paddingTop: 30, paddingHorizontal: 15, backgroundColor: '#0A0A0A', flexDirection: 'row', alignItems: 'center' },
+  modalHeader: { height: 80, paddingTop: 30, paddingHorizontal: 15, backgroundColor: colors.surface, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: colors.border },
   modalBackButton: { marginRight: 10 },
-  modalHeaderTitle: { color: colors.accent, fontWeight: 'bold', fontSize: 16 },
+  modalHeaderTitle: { color: colors.text, fontWeight: 'bold', fontSize: 16 },
   modalSubtitle: { color: colors.textMuted, fontSize: 12, marginTop: 4, lineHeight: 16 },
-  candidateStrip: { paddingVertical: 10, paddingHorizontal: 12, backgroundColor: 'rgba(255,255,255,0.02)', borderBottomWidth: 1, borderBottomColor: 'rgba(197,160,112,0.15)' },
+  candidateStrip: { paddingVertical: 10, paddingHorizontal: 12, backgroundColor: colors.surfaceMuted, borderBottomWidth: 1, borderBottomColor: colors.border },
   candidateStripLabel: { color: colors.textMuted, fontSize: 11, fontWeight: '700', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 },
   candidateChips: { paddingRight: 12, flexDirection: 'row', alignItems: 'flex-start' },
-  candidateChip: { maxWidth: 220, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, backgroundColor: 'rgba(197,160,112,0.12)', borderWidth: 1, borderColor: 'rgba(197,160,112,0.35)', marginRight: 8 },
+  candidateChip: { maxWidth: 220, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, backgroundColor: colors.accentSoft, borderWidth: 1, borderColor: colors.accent, marginRight: 8 },
   candidateChipText: { color: colors.text, fontSize: 12, lineHeight: 16 },
-  mapHint: { paddingHorizontal: 14, paddingVertical: 10, color: colors.textMuted, fontSize: 12, lineHeight: 17, backgroundColor: 'rgba(0,0,0,0.35)' },
-  modalButtonFixed: { position: 'absolute', bottom: 30, left: 20, right: 20, backgroundColor: '#0A0A0A', padding: 15, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(197,160,112,0.35)' },
-  closeModalText: { color: colors.accent, fontWeight: 'bold' },
+  mapHint: { paddingHorizontal: 14, paddingVertical: 10, color: colors.textSecondary, fontSize: 12, lineHeight: 17, backgroundColor: colors.surfaceMuted },
+  modalButtonFixed: { position: 'absolute', bottom: 30, left: 20, right: 20, backgroundColor: colors.accent, padding: 15, borderRadius: 12, alignItems: 'center', ...shadows.floating },
+  closeModalText: { color: colors.accentText, fontWeight: 'bold' },
   avatarContainer: { alignItems: 'center', marginBottom: 18 },
-  avatar: { width: 100, height: 100, borderRadius: 50, borderWidth: 1, borderColor: colors.accent },
-  avatarPlaceholder: { width: 100, height: 100, borderRadius: 50, backgroundColor: 'rgba(255,255,255,0.03)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(197,160,112,0.25)' },
-  cameraIcon: { position: 'absolute', bottom: 0, right: 0, backgroundColor: '#0A0A0A', padding: 6, borderRadius: 15, borderWidth: 1, borderColor: 'rgba(197,160,112,0.35)' },
+  avatar: { width: 100, height: 100, borderRadius: 50, borderWidth: 2, borderColor: colors.accent },
+  avatarPlaceholder: { width: 100, height: 100, borderRadius: 50, backgroundColor: colors.surfaceMuted, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: colors.border },
+  cameraIcon: { position: 'absolute', bottom: 0, right: 0, backgroundColor: colors.accent, padding: 8, borderRadius: 20, borderWidth: 2, borderColor: colors.surface },
   servicesHint: { fontSize: 13, color: colors.textMuted, marginBottom: 14, lineHeight: 19 },
   serviceCard: {
     marginBottom: 16,
     paddingBottom: 14,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(197,160,112,0.12)",
+    borderBottomColor: colors.border,
   },
   serviceTopRow: { flexDirection: "row", alignItems: "flex-start", marginBottom: 8 },
   serviceThumbWrap: {
@@ -828,22 +834,22 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.05)",
+    backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
-    borderColor: "rgba(197,160,112,0.3)",
+    borderColor: colors.border,
   },
   serviceThumbPlaceholder: {
     width: 72,
     height: 72,
     borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.03)",
+    backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
-    borderColor: "rgba(197,160,112,0.25)",
+    borderColor: colors.border,
     justifyContent: "center",
     alignItems: "center",
   },
   serviceThumbLabel: { fontSize: 9, color: colors.textMuted, marginTop: 2, fontWeight: "600" },
-  clearThumbBtn: { position: "absolute", top: -6, right: -6, backgroundColor: "#0A0A0A", borderRadius: 12 },
+  clearThumbBtn: { position: "absolute", top: -6, right: -6, backgroundColor: colors.surface, borderRadius: 12 },
   serviceNameInput: { marginBottom: 8 },
   serviceNameInputFlex: { flex: 1, marginBottom: 0, minHeight: 48 },
   serviceMetaRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
@@ -852,13 +858,13 @@ const styles = StyleSheet.create({
   durationInput: {
     width: 52,
     borderWidth: 1,
-    borderColor: "rgba(197,160,112,0.25)",
+    borderColor: colors.border,
     borderRadius: 10,
     paddingVertical: 10,
     paddingHorizontal: 8,
     textAlign: "center",
     color: colors.text,
-    backgroundColor: "rgba(255,255,255,0.03)",
+    backgroundColor: colors.surface,
   },
   priceBlock: { flexDirection: "row", alignItems: "center", flex: 1, marginLeft: 12, marginRight: 8 },
   currency: { marginRight: 4, fontWeight: "bold", color: colors.accent },
@@ -866,17 +872,17 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 56,
     borderWidth: 1,
-    borderColor: "rgba(197,160,112,0.25)",
+    borderColor: colors.border,
     borderRadius: 10,
     paddingVertical: 10,
     paddingHorizontal: 10,
     color: colors.text,
-    backgroundColor: "rgba(255,255,255,0.03)",
+    backgroundColor: colors.surface,
   },
   deleteServiceBtn: { padding: 6 },
   addServiceMetaRow: { flexDirection: "row", alignItems: "center", marginBottom: 8 },
   addServiceFab: { marginLeft: 4, paddingVertical: 4 },
-  button: { backgroundColor: "#0A0A0A", padding: 18, borderRadius: 12, alignItems: "center", marginTop: 30, marginBottom: 50, borderWidth: 1, borderColor: 'rgba(197,160,112,0.35)' },
-  buttonText: { color: "#fff", fontWeight: "bold", fontSize: 16 },
+  button: { backgroundColor: colors.accent, padding: 18, borderRadius: 12, alignItems: "center", marginTop: 30, marginBottom: 50, ...shadows.button },
+  buttonText: { color: colors.accentText, fontWeight: "bold", fontSize: 16 },
   fieldLabel: { fontSize: 12, fontWeight: 'bold', color: colors.textMuted, marginBottom: 4 },
 });

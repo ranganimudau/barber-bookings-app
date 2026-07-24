@@ -12,10 +12,11 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Ionicons from "react-native-vector-icons/Ionicons";
+import { useLightStatusBar } from "../../hooks/useLightStatusBar";
 import { supabase } from "../../supabase/supabaseClient";
 import { createPayfastCheckout } from "../../utils/createPayfastCheckout";
 import { openPaymentCheckoutUrl } from "../../utils/openPaymentCheckoutUrl";
-import { colors } from "../../theme/clientTheme";
+import { colors, shadows } from "../../theme/barberTheme";
 import {
   ensureBarberSubscriptionState,
   getSubscriptionLabel,
@@ -34,6 +35,7 @@ const withTimeout = (promise, ms) =>
   Promise.race([promise, new Promise((resolve) => setTimeout(() => resolve(null), ms))]);
 
 export default function SubscriptionPaywall({ navigation, route }) {
+  useLightStatusBar(colors.background);
   const insets = useSafeAreaInsets();
   const [subState, setSubState] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -151,7 +153,7 @@ export default function SubscriptionPaywall({ navigation, route }) {
     : "Pay R50 for a 20-day unlimited-booking trial";
 
   const contentPad = {
-    paddingTop: Math.max(insets.top, 16) + 8,
+    paddingTop: Math.max(insets.top, 24) + 44,
     paddingBottom: Math.max(insets.bottom, 20) + 32,
   };
 
@@ -161,6 +163,8 @@ export default function SubscriptionPaywall({ navigation, route }) {
       contentContainerStyle={[styles.content, contentPad]}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
+      bounces={false}
+      overScrollMode="never"
     >
       <View style={styles.headerBlock}>
         <View style={styles.titleRow}>
@@ -202,7 +206,7 @@ export default function SubscriptionPaywall({ navigation, route }) {
           </View>
           {TRIAL_BENEFITS.map((line) => (
             <View key={line} style={styles.benefitRow}>
-              <Ionicons name="checkmark-circle" size={16} color="#34D399" />
+              <Ionicons name="checkmark-circle" size={16} color={colors.success} />
               <Text style={styles.benefitText}>{line}</Text>
             </View>
           ))}
@@ -214,13 +218,13 @@ export default function SubscriptionPaywall({ navigation, route }) {
           >
             {checkoutLoading ? (
               <>
-                <ActivityIndicator size="small" color="#0A0A0A" />
+                <ActivityIndicator size="small" color={colors.accentText} />
                 <Text style={styles.primaryCtaText}>Opening checkout...</Text>
               </>
             ) : (
               <>
                 <Text style={styles.primaryCtaText}>Pay R50 now</Text>
-                <Ionicons name="arrow-forward" size={18} color="#0A0A0A" />
+                <Ionicons name="arrow-forward" size={18} color={colors.accentText} />
               </>
             )}
           </TouchableOpacity>
@@ -293,7 +297,7 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
   heroTitle: {
-    color: "#F5F5F0",
+    color: colors.text,
     fontSize: 24,
     fontWeight: "800",
     lineHeight: 30,
@@ -309,12 +313,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     alignSelf: "flex-start",
-    backgroundColor: "rgba(255,255,255,0.04)",
+    backgroundColor: colors.surfaceMuted,
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(197,160,112,0.2)",
+    borderColor: colors.border,
     maxWidth: "100%",
   },
   statusDot: {
@@ -324,9 +328,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.textMuted,
     marginRight: 8,
   },
-  statusDotOk: { backgroundColor: "#34D399" },
+  statusDotOk: { backgroundColor: colors.success },
   statusPillText: {
-    color: "#E8E6E1",
+    color: colors.text,
     fontSize: 12,
     fontWeight: "700",
     flexShrink: 1,
@@ -334,38 +338,39 @@ const styles = StyleSheet.create({
   loadingBox: { paddingVertical: 12, marginBottom: 8, alignItems: "center" },
   quickGuide: {
     borderWidth: 1,
-    borderColor: "rgba(197,160,112,0.22)",
+    borderColor: colors.border,
     borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.02)",
+    backgroundColor: colors.surfaceMuted,
     padding: 14,
     marginBottom: 14,
   },
-  quickGuideTitle: { color: "#F5F5F0", fontSize: 14, fontWeight: "800", marginBottom: 8 },
+  quickGuideTitle: { color: colors.text, fontSize: 14, fontWeight: "800", marginBottom: 8 },
   quickGuideText: { color: colors.textMuted, fontSize: 13, lineHeight: 18 },
   optionCard: {
-    backgroundColor: "rgba(255,255,255,0.03)",
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: "rgba(197,160,112,0.22)",
+    borderColor: colors.border,
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
+    ...shadows.card,
   },
   optionCardActive: {
-    borderColor: "rgba(197,160,112,0.5)",
-    backgroundColor: "rgba(197,160,112,0.08)",
+    borderColor: colors.accent,
+    backgroundColor: colors.accentSoft,
   },
   optionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 },
   optionTitleWrap: { flexShrink: 1, paddingRight: 12 },
   optionLabel: { color: colors.accent, fontSize: 11, fontWeight: "800", textTransform: "uppercase", marginBottom: 2 },
-  optionTitle: { color: "#F5F5F0", fontSize: 20, fontWeight: "900", marginBottom: 2 },
+  optionTitle: { color: colors.text, fontSize: 20, fontWeight: "900", marginBottom: 2 },
   optionSubtitle: { color: colors.textMuted, fontSize: 13, lineHeight: 18 },
-  optionAmount: { color: "#F5F5F0", fontSize: 24, fontWeight: "900" },
+  optionAmount: { color: colors.text, fontSize: 24, fontWeight: "900" },
   benefitRow: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 5,
   },
-  benefitText: { color: "#F5F5F0", fontSize: 14, fontWeight: "600", marginLeft: 10, flex: 1 },
+  benefitText: { color: colors.textSecondary, fontSize: 14, fontWeight: "600", marginLeft: 10, flex: 1 },
   secondaryCta: {
     flexDirection: "row",
     alignItems: "center",
@@ -374,11 +379,11 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "rgba(197,160,112,0.5)",
-    backgroundColor: "#0A0A0A",
+    borderColor: colors.accent,
+    backgroundColor: colors.surface,
     marginTop: 10,
   },
-  secondaryCtaText: { color: "#F5F5F0", fontSize: 15, fontWeight: "800" },
+  secondaryCtaText: { color: colors.text, fontSize: 15, fontWeight: "800" },
   primaryCta: {
     flexDirection: "row",
     alignItems: "center",
@@ -389,9 +394,10 @@ const styles = StyleSheet.create({
     paddingVertical: 17,
     paddingHorizontal: 20,
     marginTop: 12,
+    ...shadows.button,
   },
   ctaDisabled: { opacity: 0.55 },
-  primaryCtaText: { color: "#0A0A0A", fontSize: 16, fontWeight: "900" },
+  primaryCtaText: { color: colors.accentText, fontSize: 16, fontWeight: "900" },
   textLink: { alignItems: "center", paddingVertical: 8 },
   textLinkLabel: { color: colors.textMuted, fontSize: 15, fontWeight: "800" },
   textLinkHint: {
@@ -417,12 +423,12 @@ const styles = StyleSheet.create({
     gap: 8,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "rgba(197,160,112,0.38)",
-    backgroundColor: "rgba(255,255,255,0.03)",
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
     paddingVertical: 14,
     marginBottom: 10,
   },
-  subscriptionOnlyText: { color: "#F5F5F0", fontSize: 15, fontWeight: "800" },
+  subscriptionOnlyText: { color: colors.text, fontSize: 15, fontWeight: "800" },
   manualOpenCta: {
     flexDirection: "row",
     alignItems: "center",
@@ -430,8 +436,8 @@ const styles = StyleSheet.create({
     gap: 8,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(197,160,112,0.35)",
-    backgroundColor: "rgba(255,255,255,0.03)",
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
     paddingVertical: 12,
     marginBottom: 10,
   },
