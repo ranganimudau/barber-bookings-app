@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 import Icon from 'react-native-vector-icons/Ionicons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLightStatusBar } from '../../hooks/useLightStatusBar';
 import { supabase } from '../../supabase/supabaseClient';
 import { colors, shadows } from '../../theme/barberTheme';
@@ -10,6 +11,7 @@ import { ensureBarberSubscriptionState, isSubscriptionEligible } from '../../uti
 
 export default function Availability({ navigation }) {
   useLightStatusBar(colors.background);
+  const insets = useSafeAreaInsets();
 
   const today = new Date().toISOString().split('T')[0]; // Get current date in YYYY-MM-DD format
   const [selectedDate, setSelectedDate] = useState('');
@@ -192,8 +194,13 @@ export default function Availability({ navigation }) {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-      <Text style={styles.screenTitle}>Availability</Text>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.contentContainer}
+      bounces={false}
+      overScrollMode="never"
+    >
+      <Text style={[styles.screenTitle, { marginTop: Math.max(insets.top, 16) + 28 }]}>Availability</Text>
 
       {showSubscriptionBanner ? (
         <View style={styles.subBanner}>

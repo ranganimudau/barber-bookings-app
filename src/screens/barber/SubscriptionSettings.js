@@ -35,7 +35,12 @@ export default function SubscriptionSettings({ navigation }) {
     navigation.navigate("SubscriptionPaywall", { fromSettings: true });
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={styles.content}
+      bounces={false}
+      overScrollMode="never"
+    >
       <Text style={styles.title}>Subscription</Text>
       <Text style={styles.subtitle}>{getSubscriptionLabel(subState)}</Text>
 

@@ -372,6 +372,8 @@ export default function Services() {
         renderItem={renderItem}
         keyExtractor={(item) => item.id.toString()}
         contentContainerStyle={{ paddingBottom: keyboardInset + 120 }}
+        bounces={false}
+        overScrollMode="never"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchServices(); }} />}
         ListFooterComponent={
           <View style={styles.addContainer}>

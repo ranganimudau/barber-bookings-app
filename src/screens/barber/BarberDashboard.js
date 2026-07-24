@@ -241,8 +241,10 @@ export default function BarberDashboard({ navigation }) {
   return (
     <ScrollView
       style={styles.screen}
-      contentContainerStyle={[styles.content, { paddingTop: Math.max(insets.top, 16) + 8 }]}
+      contentContainerStyle={[styles.content, { paddingTop: Math.max(insets.top, 16) + 28 }]}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />}
+      bounces={false}
+      overScrollMode="never"
     >
       <View style={styles.header}>
         <View style={styles.headerTopRow}>

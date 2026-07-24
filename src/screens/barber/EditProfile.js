@@ -263,6 +263,8 @@ export default function EditProfile() {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
         contentContainerStyle={{ paddingBottom: 40 + keyboardPad + 20 }}
+        bounces={false}
+        overScrollMode="never"
       >
         
         <Text style={styles.sectionHeader}>General Information</Text>

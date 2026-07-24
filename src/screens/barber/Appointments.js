@@ -11,6 +11,7 @@ import {
   View
 } from "react-native";
 import Icon from "react-native-vector-icons/Ionicons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLightStatusBar } from "../../hooks/useLightStatusBar";
 import { colors, shadows } from "../../theme/barberTheme";
 import { supabase } from "../../supabase/supabaseClient";
@@ -20,6 +21,7 @@ import { scheduleLocalNotificationSafe } from "../../utils/safeLocalNotification
 
 export default function Appointments({ navigation }) {
   useLightStatusBar(colors.background);
+  const insets = useSafeAreaInsets();
 
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -272,15 +274,20 @@ export default function Appointments({ navigation }) {
     const s = (b.status || "").toLowerCase();
     return s === "pending" || s === "requested";
   });
-  const weekEnd = new Date();
-  weekEnd.setDate(weekEnd.getDate() + 7);
-  weekEnd.setHours(23, 59, 59, 999);
+  // All upcoming confirmed appointments (not just today, not just the very
+  // next one) — soonest first, since barbers need to see what's coming this
+  // week/later, not only what's happening today.
+  const upcomingAppointments = categorized.futureConfirmed;
+  const nextAppointment = upcomingAppointments[0] || null;
+  const laterAppointments = upcomingAppointments.slice(1);
 
-  const upcomingWeek = categorized.futureConfirmed.filter((b) => {
-    const ts = getBookingTimestamp(b);
-    return ts > Date.now() && ts <= weekEnd.getTime();
-  });
-  const nextAppointment = upcomingWeek[0] || null;
+  // Only render a section when it actually has something to show — avoids
+  // stacking three separate empty-state cards when the barber's caught up.
+  const hasPendingToShow = !subscriptionLocked && categorized.pending.length > 0;
+  const hasNextAppointment = !!nextAppointment;
+  const hasNeedsCompletion = categorized.needsCompletion.length > 0;
+  const activeTabAllClear =
+    !subscriptionLoading && !subscriptionLocked && !hasPendingToShow && !hasNextAppointment && !hasNeedsCompletion;
 
   const getMinutesUntil = (item) => {
     if (!item) return null;
@@ -378,6 +385,28 @@ export default function Appointments({ navigation }) {
     );
   };
 
+  const renderUpcomingCard = (item) => (
+    <View key={item.id} style={styles.historyCard}>
+      <View style={styles.historyLeft}>
+        {getClientAvatarUri(item) ? (
+          <Image source={{ uri: getClientAvatarUri(item) }} style={styles.historyAvatar} />
+        ) : (
+          <View style={styles.historyAvatarFallback}>
+            <Icon name="person" size={16} color={colors.textMuted} />
+          </View>
+        )}
+        <View>
+          <Text style={styles.historyName}>{item.profiles?.full_name || "Client"}</Text>
+          <Text style={styles.historySub}>{item.service_name || "Service"} - {formatCurrency(item.price)}</Text>
+        </View>
+      </View>
+      <View style={styles.historyRight}>
+        <Text style={styles.historyTime}>{item.appointment_date}</Text>
+        <Text style={[styles.historyStatus, { color: colors.accent }]}>{formatTime(item.appointment_time)}</Text>
+      </View>
+    </View>
+  );
+
   const renderNeedsCompletionCard = (item) => (
     <View key={item.id} style={styles.completionCard}>
       <View style={styles.completionLeft}>
@@ -417,7 +446,9 @@ export default function Appointments({ navigation }) {
     <View style={styles.screen}>
       <ScrollView
         style={styles.container}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingTop: Math.max(insets.top, 16) + 28 }]}
+        bounces={false}
+        overScrollMode="never"
         refreshControl={
           <RefreshControl
             refreshing={loading}
@@ -469,83 +500,80 @@ export default function Appointments({ navigation }) {
         </View>
 
         {activeTab === "active" ? (
-          <>
-            <Text style={styles.sectionTitle}>Needs Action</Text>
-            {subscriptionLoading ? (
-              <View style={styles.emptyCard}>
-                <Text style={styles.emptyText}>Checking subscription...</Text>
-              </View>
-            ) : subscriptionKnown ? (
-              subscriptionEligible ? (
-                categorized.pending.length > 0 ? (
-                  categorized.pending.map(renderActionCard)
-                ) : (
-                  <View style={styles.emptyCard}>
-                    <Text style={styles.emptyText}>No pending booking requests right now.</Text>
+          subscriptionLoading ? (
+            <View style={styles.emptyCard}>
+              <Text style={styles.emptyText}>Checking subscription...</Text>
+            </View>
+          ) : activeTabAllClear ? (
+            <View style={styles.emptyCard}>
+              <Icon name="checkmark-done-circle-outline" size={22} color={colors.textMuted} />
+              <Text style={[styles.emptyText, { marginTop: 8 }]}>
+                You're all caught up — no pending requests or upcoming work.
+              </Text>
+            </View>
+          ) : (
+            <>
+              {subscriptionLocked ? (
+                <>
+                  <Text style={styles.sectionTitle}>Needs Action</Text>
+                  <View style={styles.lockedBanner}>
+                    <View style={styles.lockedBannerRow}>
+                      <Icon name="lock-closed-outline" size={18} color={colors.accent} />
+                      <Text style={styles.lockedBannerText}>
+                        {trialFinished
+                          ? "Trial finished. Pay R70/month subscription to continue receiving booking requests."
+                          : "Activate subscription to receive new booking requests."}
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.lockedBannerBtn}
+                      onPress={() => navigation.navigate("SubscriptionPaywall")}
+                      activeOpacity={0.85}
+                    >
+                      <Text style={styles.lockedBannerBtnText}>Upgrade</Text>
+                    </TouchableOpacity>
                   </View>
-                )
-              ) : (
-                <View style={styles.lockedBanner}>
-                  <View style={styles.lockedBannerRow}>
-                    <Icon name="lock-closed-outline" size={18} color={colors.accent} />
-                    <Text style={styles.lockedBannerText}>
-                      {trialFinished
-                        ? "Trial finished. Pay R70/month subscription to continue receiving booking requests."
-                        : "Activate subscription to receive new booking requests."}
+                </>
+              ) : hasPendingToShow ? (
+                <>
+                  <Text style={styles.sectionTitle}>Needs Action</Text>
+                  {categorized.pending.map(renderActionCard)}
+                </>
+              ) : null}
+
+              {hasNextAppointment ? (
+                <>
+                  <Text style={styles.sectionTitle}>Upcoming Appointments</Text>
+                  <View style={styles.nextCard}>
+                    <View style={styles.nextTopRow}>
+                      <Text style={styles.nextClient}>{nextAppointment.profiles?.full_name || "Client"}</Text>
+                      <Text style={styles.nextPrice}>{formatCurrency(nextAppointment.price)}</Text>
+                    </View>
+                    <Text style={styles.nextService}>{nextAppointment.service_name || "Service"}</Text>
+                    <Text style={styles.nextMeta}>
+                      {nextAppointment.appointment_date} at {formatTime(nextAppointment.appointment_time)}
                     </Text>
+                    <View style={styles.timelineWrap}>
+                      <View style={styles.timelineLine} />
+                      <Text style={styles.timelineText}>
+                        {minutesUntilNext !== null
+                          ? formatTimeUntil(minutesUntilNext)
+                          : "upcoming today"}
+                      </Text>
+                    </View>
                   </View>
-                  <TouchableOpacity
-                    style={styles.lockedBannerBtn}
-                    onPress={() => navigation.navigate("SubscriptionPaywall")}
-                    activeOpacity={0.85}
-                  >
-                    <Text style={styles.lockedBannerBtnText}>Upgrade</Text>
-                  </TouchableOpacity>
-                </View>
-              )
-            ) : categorized.pending.length > 0 ? (
-              categorized.pending.map(renderActionCard)
-            ) : (
-              <View style={styles.emptyCard}>
-                <Text style={styles.emptyText}>No pending booking requests right now.</Text>
-              </View>
-            )}
+                  {laterAppointments.map(renderUpcomingCard)}
+                </>
+              ) : null}
 
-            <Text style={styles.sectionTitle}>Next Appointment</Text>
-            {nextAppointment ? (
-              <View style={styles.nextCard}>
-                <View style={styles.nextTopRow}>
-                  <Text style={styles.nextClient}>{nextAppointment.profiles?.full_name || "Client"}</Text>
-                  <Text style={styles.nextPrice}>{formatCurrency(nextAppointment.price)}</Text>
-                </View>
-                <Text style={styles.nextService}>{nextAppointment.service_name || "Service"}</Text>
-                <Text style={styles.nextMeta}>
-                  {nextAppointment.appointment_date} at {formatTime(nextAppointment.appointment_time)}
-                </Text>
-                <View style={styles.timelineWrap}>
-                  <View style={styles.timelineLine} />
-                  <Text style={styles.timelineText}>
-                    {minutesUntilNext !== null
-                      ? formatTimeUntil(minutesUntilNext)
-                      : "upcoming today"}
-                  </Text>
-                </View>
-              </View>
-            ) : (
-              <View style={styles.emptyCard}>
-                <Text style={styles.emptyText}>No upcoming appointments this week.</Text>
-              </View>
-            )}
-
-            <Text style={styles.sectionTitle}>Needs Completion</Text>
-            {categorized.needsCompletion.length > 0 ? (
-              categorized.needsCompletion.map(renderNeedsCompletionCard)
-            ) : (
-              <View style={styles.emptyCard}>
-                <Text style={styles.emptyText}>No completed confirmations to wrap up.</Text>
-              </View>
-            )}
-          </>
+              {hasNeedsCompletion ? (
+                <>
+                  <Text style={styles.sectionTitle}>Needs Completion</Text>
+                  {categorized.needsCompletion.map(renderNeedsCompletionCard)}
+                </>
+              ) : null}
+            </>
+          )
         ) : (
           <>
             <Text style={styles.sectionTitle}>Booking History</Text>

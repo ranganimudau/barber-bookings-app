@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLightStatusBar } from '../../hooks/useLightStatusBar';
 import { supabase } from "../../supabase/supabaseClient";
 import { colors, shadows } from '../../theme/barberTheme';
@@ -8,6 +9,7 @@ import { invokeDeleteBarberAccount } from "../../utils/invokeDeleteBarberAccount
 
 export default function BarberSettings({ navigation }) {
   useLightStatusBar(colors.background);
+  const insets = useSafeAreaInsets();
 
   const [deletingAccount, setDeletingAccount] = useState(false);
 
@@ -70,7 +72,12 @@ export default function BarberSettings({ navigation }) {
   ];
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={[styles.content, { paddingTop: Math.max(insets.top, 16) + 28 }]}
+      bounces={false}
+      overScrollMode="never"
+    >
       <Text style={styles.screenTitle}>Settings</Text>
 
       <View style={styles.headerCard}>

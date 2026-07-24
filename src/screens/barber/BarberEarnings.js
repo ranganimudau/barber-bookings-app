@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLightStatusBar } from '../../hooks/useLightStatusBar';
 import { supabase } from "../../supabase/supabaseClient";
 import { colors, shadows } from '../../theme/barberTheme';
@@ -8,6 +9,7 @@ import { ensureBarberSubscriptionState, isSubscriptionEligible } from '../../uti
 
 export default function BarberEarnings({ navigation }) {
   useLightStatusBar(colors.background);
+  const insets = useSafeAreaInsets();
 
   const [confirmed, setConfirmed] = useState([]);
   const [pending, setPending] = useState([]);
@@ -21,11 +23,14 @@ export default function BarberEarnings({ navigation }) {
   const pagerRef = useRef(null);
   const { width: windowWidth } = useWindowDimensions();
 
-  // Offsets in ascending "age" so we can invert swipe direction.
-  // We want: swipe right -> show past weeks.
-  // So we start on the LAST page (current week) and older weeks are to the left.
-  const weekOffsets = useMemo(() => [-5, -4, -3, -2, -1, 0], []);
-  const [activeWeekIndex, setActiveWeekIndex] = useState(weekOffsets.length - 1);
+  // Ascending offsets, past to future, laid out left-to-right in that
+  // order — current week sits in the middle so both directions have
+  // somewhere to go: swiping right (finger moves right) naturally reveals
+  // earlier pages (past weeks), swiping left reveals later pages (upcoming
+  // weeks, using already-confirmed future bookings).
+  const weekOffsets = useMemo(() => [-4, -3, -2, -1, 0, 1, 2, 3, 4], []);
+  const currentWeekPageIndex = weekOffsets.indexOf(0);
+  const [activeWeekIndex, setActiveWeekIndex] = useState(currentWeekPageIndex);
   const [selectedDayIndex, setSelectedDayIndex] = useState(null);
 
   useEffect(() => {
@@ -226,25 +231,16 @@ export default function BarberEarnings({ navigation }) {
     if (todayIdx >= 0) setSelectedDayIndex(todayIdx);
   }, [activeWeekIndex, weekCharts, weekOffsets]);
 
-  useEffect(() => {
-    // Ensure the ScrollView starts on the "current week" page.
-    // Without this, content offset starts at page 0 (oldest).
-    if (!pagerRef.current) return;
-    const targetIndex = weekOffsets.length - 1;
-    const x = targetIndex * pageWidth;
-    requestAnimationFrame(() => {
-      try {
-        pagerRef.current.scrollTo({ x, animated: false });
-      } catch (e) {
-        // No-op: scrollTo may fail on first render in some RN versions.
-      }
-    });
-  }, [pageWidth, weekOffsets.length]);
 
   if (loading) return <ActivityIndicator style={styles.loader} size="large" color={colors.accent} />;
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={[styles.content, { paddingTop: Math.max(insets.top, 16) + 28 }]}
+      bounces={false}
+      overScrollMode="never"
+    >
       <Text style={styles.screenTitle}>Earnings</Text>
 
       <View style={styles.mainCard}>
@@ -310,6 +306,11 @@ export default function BarberEarnings({ navigation }) {
           nestedScrollEnabled
           onMomentumScrollEnd={handleWeekScrollEnd}
           scrollEnabled={!subscriptionLocked}
+          // Declarative initial scroll position — reliable on first mount,
+          // unlike an imperative scrollTo() in an effect (which raced with
+          // native layout and left the real scroll position at page 0 while
+          // state said otherwise, until the next scroll event "corrected" it).
+          contentOffset={{ x: currentWeekPageIndex * pageWidth, y: 0 }}
         >
           {weekCharts.map((week, pageIdx) => (
             <View key={week.rangeLabel} style={{ width: pageWidth, opacity: subscriptionLocked ? 0.35 : 1 }}>
@@ -323,7 +324,10 @@ export default function BarberEarnings({ navigation }) {
                     <TouchableOpacity
                       key={`${bar.label}-${pageIdx}`}
                       activeOpacity={0.85}
-                      onPress={() => setSelectedDayIndex(idx)}
+                      onPress={() => {
+                        setActiveWeekIndex(pageIdx);
+                        setSelectedDayIndex(idx);
+                      }}
                       style={styles.chartBarColTouchable}
                     >
                       <View style={styles.chartBarTrack}>
@@ -348,7 +352,12 @@ export default function BarberEarnings({ navigation }) {
                   <TouchableOpacity
                     key={p.label}
                     activeOpacity={0.85}
-                    onPress={() => !subscriptionLocked && setSelectedDayIndex(idx)}
+                    style={styles.chartLabelCol}
+                    onPress={() => {
+                      if (subscriptionLocked) return;
+                      setActiveWeekIndex(pageIdx);
+                      setSelectedDayIndex(idx);
+                    }}
                   >
                     <Text
                       style={[
@@ -357,6 +366,14 @@ export default function BarberEarnings({ navigation }) {
                       ]}
                     >
                       {p.label}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.chartLabelDate,
+                        selectedDayIndex === idx && pageIdx === activeWeekIndex ? styles.chartLabelSelected : null,
+                      ]}
+                    >
+                      {p.date.getDate()}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -515,7 +532,9 @@ const styles = StyleSheet.create({
     minHeight: 4,
   },
   chartLabelsRow: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 10, marginTop: 8 },
-  chartLabel: { fontSize: 11, color: colors.textMuted, fontWeight: '700' },
+  chartLabelCol: { flex: 1, alignItems: 'center' },
+  chartLabel: { fontSize: 11, color: colors.textMuted, fontWeight: '700', textAlign: 'center' },
+  chartLabelDate: { fontSize: 13, color: colors.text, fontWeight: '800', textAlign: 'center', marginTop: 2 },
   chartLabelSelected: { color: colors.accent, fontWeight: '900' },
   chartLabelSpacer: { height: 0 },
   dayDetailCard: {
