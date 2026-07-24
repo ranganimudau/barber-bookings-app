@@ -109,32 +109,40 @@ export default function BarberSettings({ navigation }) {
         ))}
       </View>
 
-      <Text style={styles.sectionTitle}>Danger zone</Text>
+      <Text style={styles.sectionTitle}>Account</Text>
+      <View style={styles.menuGroup}>
+        <TouchableOpacity style={[styles.menuItem, styles.menuItemLast]} onPress={() => supabase.auth.signOut()} activeOpacity={0.8}>
+          <View style={styles.menuLabel}>
+            <View style={styles.menuIconWrap}>
+              <Ionicons name="log-out-outline" size={20} color={colors.accent} />
+            </View>
+            <Text style={styles.menuText}>Logout</Text>
+          </View>
+        </TouchableOpacity>
+      </View>
+
+      <Text style={[styles.sectionTitle, styles.dangerSectionTitle]}>Danger zone</Text>
       <View style={styles.dangerCard}>
+        <Text style={styles.dangerTitle}>Delete account</Text>
         <Text style={styles.dangerBody}>
-          Permanently delete your barber account and all associated data. You will need to sign up again to use the app as a professional.
+          Permanently removes your shop listing, services, availability, and bookings. This cannot be undone.
         </Text>
         <TouchableOpacity
           style={[styles.deleteAccountBtn, deletingAccount && styles.deleteAccountBtnDisabled]}
           onPress={handleDeleteAccountPermanently}
           disabled={deletingAccount}
-          activeOpacity={0.85}
+          activeOpacity={0.7}
         >
           {deletingAccount ? (
-            <ActivityIndicator color="#fff" size="small" />
+            <ActivityIndicator color={colors.error} size="small" />
           ) : (
             <>
-              <Ionicons name="trash-outline" size={20} color="#fff" />
-              <Text style={styles.deleteAccountBtnText}>Delete my account permanently</Text>
+              <Ionicons name="trash-outline" size={15} color={colors.error} />
+              <Text style={styles.deleteAccountBtnText}>Delete my account</Text>
             </>
           )}
         </TouchableOpacity>
       </View>
-
-      <TouchableOpacity style={styles.logoutBtn} onPress={() => supabase.auth.signOut()} activeOpacity={0.85}>
-        <Ionicons name="log-out-outline" size={22} color={colors.error} />
-        <Text style={styles.logoutText}>Logout</Text>
-      </TouchableOpacity>
       </ScrollView>
     </View>
   );
@@ -187,36 +195,28 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   menuText: { fontSize: 16, marginLeft: 12, color: colors.text, fontWeight: '700' },
+  dangerSectionTitle: { color: colors.error, opacity: 0.85 },
   dangerCard: {
-    backgroundColor: colors.errorBg,
+    backgroundColor: colors.surface,
     borderRadius: 18,
     padding: 16,
     borderWidth: 1,
-    borderColor: colors.error,
+    borderColor: colors.border,
     marginBottom: 8,
   },
-  dangerBody: { fontSize: 13, color: colors.textSecondary, lineHeight: 19, marginBottom: 14 },
+  dangerTitle: { fontSize: 14, fontWeight: '800', color: colors.text, marginBottom: 4 },
+  dangerBody: { fontSize: 13, color: colors.textMuted, lineHeight: 18, marginBottom: 14 },
   deleteAccountBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    backgroundColor: colors.error,
-    paddingVertical: 14,
-    borderRadius: 14,
-  },
-  deleteAccountBtnDisabled: { opacity: 0.7 },
-  deleteAccountBtnText: { color: '#fff', fontWeight: '800', fontSize: 15 },
-  logoutBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 20,
-    paddingVertical: 14,
-    backgroundColor: colors.surface,
+    alignSelf: 'flex-start',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: colors.error,
-    borderRadius: 14,
   },
-  logoutText: { color: colors.error, fontWeight: '700', marginLeft: 8, fontSize: 16 }
+  deleteAccountBtnDisabled: { opacity: 0.6 },
+  deleteAccountBtnText: { color: colors.error, fontWeight: '700', fontSize: 13 },
 });
