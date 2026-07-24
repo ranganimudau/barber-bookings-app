@@ -262,8 +262,17 @@ export default function SubscriptionPaywall({ navigation, route }) {
           disabled={loading || checkoutLoading}
           activeOpacity={0.9}
         >
-          <Text style={styles.subscriptionOnlyText}>Pay R70/month subscription</Text>
-          <Ionicons name="card-outline" size={18} color={colors.accent} />
+          {checkoutLoading ? (
+            <>
+              <ActivityIndicator size="small" color={colors.accent} />
+              <Text style={styles.subscriptionOnlyText}>Opening checkout...</Text>
+            </>
+          ) : (
+            <>
+              <Text style={styles.subscriptionOnlyText}>Pay R70/month subscription</Text>
+              <Ionicons name="card-outline" size={18} color={colors.accent} />
+            </>
+          )}
         </TouchableOpacity>
       ) : null}
 
