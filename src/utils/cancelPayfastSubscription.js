@@ -3,9 +3,32 @@ import { supabase, supabaseAnonKey, supabaseUrl } from "../supabase/supabaseClie
 const REFRESH_SESSION_MS = 10000;
 
 async function getAccessToken() {
-  const {
-    data: { session: initial },
-  } = await supabase.auth.getSession();
+  // getSession() itself can hang on mobile (same class of bug as
+  // getUser() hanging after the app resumes from background) — without a
+  // timeout here, a hung call means this function never resolves or
+  // rejects, so the caller's finally{} never runs and the UI stays stuck
+  // "loading" forever with no error shown.
+  const initialRace = Promise.race([
+    supabase.auth.getSession(),
+    new Promise((resolve) =>
+      setTimeout(() => resolve({ data: { session: null }, error: { message: "__timeout__" } }), REFRESH_SESSION_MS)
+    ),
+  ]);
+  const { data: initialData } = await initialRace;
+  let initial = initialData?.session ?? null;
+
+  if (!initial?.access_token) {
+    // No cached session (or getSession() itself timed out) — refreshSession
+    // sometimes succeeds independently, so try it before giving up.
+    const fallbackRace = Promise.race([
+      supabase.auth.refreshSession(),
+      new Promise((resolve) =>
+        setTimeout(() => resolve({ data: { session: null }, error: { message: "__timeout__" } }), REFRESH_SESSION_MS)
+      ),
+    ]);
+    const { data: fallbackData } = await fallbackRace;
+    initial = fallbackData?.session ?? null;
+  }
 
   if (!initial?.access_token) {
     throw new Error("Not signed in. Please log in again.");
