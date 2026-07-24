@@ -7,6 +7,7 @@ import { ActivityIndicator, Platform, View } from "react-native";
 import Constants from "expo-constants";
 import * as Device from "expo-device";
 import { StatusBar } from "expo-status-bar";
+import * as Updates from "expo-updates";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import AuthStack from "./src/navigation/AuthStack";
 import BarberStack from "./src/navigation/BarberStack";
@@ -34,6 +35,25 @@ export default function App() {
   const [passwordRecovery, setPasswordRecovery] = useState(false);
   const passwordRecoveryRef = useRef(false);
   const notificationsModRef = useRef(null);
+
+  useEffect(() => {
+    // By default expo-updates only applies a newly-fetched OTA update on the
+    // NEXT cold start after the one that downloaded it, so a single
+    // close-and-reopen isn't enough to see a fresh update. Check-fetch-reload
+    // here so one relaunch is always sufficient.
+    if (__DEV__ || !Updates.isEnabled) return;
+    (async () => {
+      try {
+        const result = await Updates.checkForUpdateAsync();
+        if (result.isAvailable) {
+          await Updates.fetchUpdateAsync();
+          await Updates.reloadAsync();
+        }
+      } catch (error) {
+        console.log("[Updates] check/fetch failed:", error?.message);
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
