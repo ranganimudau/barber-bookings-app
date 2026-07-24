@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
+import { useLightStatusBar } from "../../hooks/useLightStatusBar";
 import { supabase } from "../../supabase/supabaseClient";
 import { colors, shadows } from "../../theme/barberTheme";
 import { cancelPayfastSubscription } from "../../utils/cancelPayfastSubscription";
@@ -14,6 +15,7 @@ import {
 } from "../../utils/subscriptionState";
 
 export default function SubscriptionSettings({ navigation }) {
+  useLightStatusBar(colors.background);
   const [subState, setSubState] = useState(null);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);

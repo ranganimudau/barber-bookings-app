@@ -1,9 +1,11 @@
 import React from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRoute } from "@react-navigation/native";
+import { useLightStatusBar } from "../../hooks/useLightStatusBar";
 import { colors } from "../../theme/barberTheme";
 
 export default function SupportInfo() {
+  useLightStatusBar(colors.background);
   const route = useRoute();
   const { body, draft } = route.params || {};
 
