@@ -72,14 +72,16 @@ export default function BarberSettings({ navigation }) {
   ];
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={[styles.content, { paddingTop: Math.max(insets.top, 24) + 44 }]}
-      bounces={false}
-      overScrollMode="never"
-    >
-      <Text style={styles.screenTitle}>Settings</Text>
-
+    <View style={styles.screen}>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, 24) + 8 }]}>
+        <Text style={styles.screenTitle}>Settings</Text>
+      </View>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.content}
+        bounces={false}
+        overScrollMode="never"
+      >
       <View style={styles.headerCard}>
         <Text style={styles.headerTitle}>Business Settings</Text>
         <Text style={styles.headerSubtitle}>
@@ -133,14 +135,17 @@ export default function BarberSettings({ navigation }) {
         <Ionicons name="log-out-outline" size={22} color={colors.error} />
         <Text style={styles.logoutText}>Logout</Text>
       </TouchableOpacity>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.background },
+  header: { paddingHorizontal: 16, paddingBottom: 12, backgroundColor: colors.background },
   container: { flex: 1, backgroundColor: colors.background },
-  content: { padding: 16, paddingTop: 20, paddingBottom: 28 },
-  screenTitle: { fontSize: 24, fontWeight: '800', color: colors.text, marginBottom: 14 },
+  content: { padding: 16, paddingTop: 2, paddingBottom: 28 },
+  screenTitle: { fontSize: 24, fontWeight: '800', color: colors.text },
   headerCard: {
     backgroundColor: colors.surface,
     borderRadius: 18,

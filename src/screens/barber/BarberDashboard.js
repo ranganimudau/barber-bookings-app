@@ -239,14 +239,8 @@ export default function BarberDashboard({ navigation }) {
   }
 
   return (
-    <ScrollView
-      style={styles.screen}
-      contentContainerStyle={[styles.content, { paddingTop: Math.max(insets.top, 24) + 44 }]}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />}
-      bounces={false}
-      overScrollMode="never"
-    >
-      <View style={styles.header}>
+    <View style={styles.screen}>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, 24) + 8 }]}>
         <View style={styles.headerTopRow}>
           {barberAvatar ? (
             <Image source={{ uri: barberAvatar }} style={styles.headerAvatar} />
@@ -273,7 +267,13 @@ export default function BarberDashboard({ navigation }) {
           </View>
         </View>
       </View>
-
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />}
+        bounces={false}
+        overScrollMode="never"
+      >
       {showSubscriptionBanner ? (
         <View style={styles.subBanner}>
           <View style={styles.subBannerLeft}>
@@ -438,18 +438,21 @@ export default function BarberDashboard({ navigation }) {
           </View>
         ))
       )}
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  content: { padding: 18, paddingBottom: 40 },
+  container: { flex: 1, backgroundColor: colors.background },
+  content: { padding: 18, paddingTop: 4, paddingBottom: 40 },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
   header: {
-    marginBottom: 20, paddingBottom: 16,
+    paddingHorizontal: 18, paddingBottom: 16, marginBottom: 20,
     borderBottomWidth: 2, borderBottomColor: colors.borderStrong,
+    backgroundColor: colors.background,
   },
   headerTopRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
   headerAvatar: { width: 48, height: 48, borderRadius: 24, marginRight: 14 },

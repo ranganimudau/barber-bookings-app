@@ -235,14 +235,16 @@ export default function BarberEarnings({ navigation }) {
   if (loading) return <ActivityIndicator style={styles.loader} size="large" color={colors.accent} />;
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={[styles.content, { paddingTop: Math.max(insets.top, 24) + 44 }]}
-      bounces={false}
-      overScrollMode="never"
-    >
-      <Text style={styles.screenTitle}>Earnings</Text>
-
+    <View style={styles.screen}>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, 24) + 8 }]}>
+        <Text style={styles.screenTitle}>Earnings</Text>
+      </View>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.content}
+        bounces={false}
+        overScrollMode="never"
+      >
       <View style={styles.mainCard}>
         <Text style={styles.mainLabel}>Total Earnings</Text>
         <Text style={styles.mainAmount}>{formatRand(stats.total)}</Text>
@@ -430,15 +432,18 @@ export default function BarberEarnings({ navigation }) {
           </TouchableOpacity>
         )}
       </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.background },
+  header: { paddingHorizontal: 16, paddingBottom: 12, backgroundColor: colors.background },
   container: { flex: 1, backgroundColor: colors.background },
-  content: { padding: 16, paddingBottom: 30 },
+  content: { padding: 16, paddingTop: 2, paddingBottom: 30 },
   loader: { flex: 1, justifyContent: 'center' },
-  screenTitle: { fontSize: 24, fontWeight: '800', color: colors.text, marginBottom: 14 },
+  screenTitle: { fontSize: 24, fontWeight: '800', color: colors.text },
   mainCard: {
     backgroundColor: colors.surface, borderRadius: 20, padding: 18, marginBottom: 14,
     borderWidth: 1, borderColor: colors.border, ...shadows.card,

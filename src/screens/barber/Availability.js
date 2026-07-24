@@ -194,14 +194,16 @@ export default function Availability({ navigation }) {
   };
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.contentContainer}
-      bounces={false}
-      overScrollMode="never"
-    >
-      <Text style={[styles.screenTitle, { marginTop: Math.max(insets.top, 24) + 44 }]}>Availability</Text>
-
+    <View style={styles.screen}>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, 24) + 8 }]}>
+        <Text style={styles.screenTitle}>Availability</Text>
+      </View>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.contentContainer}
+        bounces={false}
+        overScrollMode="never"
+      >
       {showSubscriptionBanner ? (
         <View style={styles.subBanner}>
           <View style={styles.subBannerLeft}>
@@ -345,14 +347,17 @@ export default function Availability({ navigation }) {
           <Text style={styles.placeholderText}>Select a date to set custom hours for that day.</Text>
         </View>
       )}
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.background },
+  header: { paddingHorizontal: 14, paddingBottom: 10, backgroundColor: colors.background },
   container: { flex: 1, backgroundColor: colors.background },
   contentContainer: { paddingBottom: 24 },
-  screenTitle: { fontSize: 24, fontWeight: '800', color: colors.text, marginHorizontal: 14, marginTop: 16 },
+  screenTitle: { fontSize: 24, fontWeight: '800', color: colors.text },
   calendarWrap: {
     backgroundColor: colors.surface,
     marginHorizontal: 14,

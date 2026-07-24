@@ -444,9 +444,12 @@ export default function Appointments({ navigation }) {
 
   return (
     <View style={styles.screen}>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, 24) + 8 }]}>
+        <Text style={styles.screenTitle}>Bookings</Text>
+      </View>
       <ScrollView
         style={styles.container}
-        contentContainerStyle={[styles.content, { paddingTop: Math.max(insets.top, 24) + 44 }]}
+        contentContainerStyle={styles.content}
         bounces={false}
         overScrollMode="never"
         refreshControl={
@@ -461,8 +464,6 @@ export default function Appointments({ navigation }) {
           />
         }
       >
-        <Text style={styles.screenTitle}>Bookings</Text>
-
         <View style={styles.summaryCard}>
           <View style={styles.summaryItem}>
             <View style={styles.summaryIconBadge}>
@@ -593,10 +594,11 @@ export default function Appointments({ navigation }) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
+  header: { paddingHorizontal: 16, paddingBottom: 12, backgroundColor: colors.background },
   container: { flex: 1, backgroundColor: colors.background },
-  content: { padding: 16, paddingBottom: 34 },
+  content: { padding: 16, paddingTop: 2, paddingBottom: 34 },
   loadingWrap: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.background },
-  screenTitle: { fontSize: 24, fontWeight: "800", color: colors.text, marginBottom: 14 },
+  screenTitle: { fontSize: 24, fontWeight: "800", color: colors.text },
   summaryCard: {
     flexDirection: "row",
     gap: 10,
