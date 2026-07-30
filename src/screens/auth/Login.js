@@ -13,13 +13,17 @@ import {
   View,
 } from "react-native";
 import * as Linking from "expo-linking";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Icon from "react-native-vector-icons/Ionicons";
 import KeyboardDoneBar from "../../components/common/KeyboardDoneBar";
 import { useKeyboardInset } from "../../hooks/useKeyboardInset";
+import { useLightStatusBar } from "../../hooks/useLightStatusBar";
 import { supabase } from "../../supabase/supabaseClient";
-import { colors } from "../../theme/clientTheme";
+import { colors, shadows } from "../../theme/barberTheme";
 
 export default function Login({ navigation }) {
+  useLightStatusBar(colors.background);
+  const insets = useSafeAreaInsets();
   const keyboardInset = useKeyboardInset();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -98,7 +102,7 @@ export default function Login({ navigation }) {
 
       const role = profileData.role;
 
-      // 2. If Barber, check if setup is complete
+      // 2. If business/pro account, check if setup is complete
       if (role === "barber") {
         const { data: barberData } = await supabase
           .from("barbers")
@@ -128,19 +132,26 @@ export default function Login({ navigation }) {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingBottom: 34 + keyboardInset + 20 }]}
+        contentContainerStyle={[
+          styles.content,
+          { paddingTop: Math.max(insets.top, 24) + 20, paddingBottom: 34 + keyboardInset + 20 },
+        ]}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
         showsVerticalScrollIndicator={false}
+        bounces={false}
+        overScrollMode="never"
       >
         <View style={styles.heroBadge}>
-          <Icon name="sparkles-outline" size={14} color={colors.accent} />
+          <View style={styles.logoBadge}>
+            <Text style={styles.logoBadgeText}>SB</Text>
+          </View>
           <Text style={styles.heroBadgeText}>SkoonBook</Text>
         </View>
 
         <Text style={styles.title}>Welcome back</Text>
         <Text style={styles.subtitle}>
-          Sign in to manage bookings, services, and earnings in one premium app.
+          Sign in to manage bookings, services, and earnings in one app.
         </Text>
 
         <View style={styles.card}>
@@ -182,7 +193,7 @@ export default function Login({ navigation }) {
                 <Icon
                   name={showPassword ? "eye-off-outline" : "eye-outline"}
                   size={22}
-                  color={colors.textSecondary}
+                  color={colors.textMuted}
                 />
               </TouchableOpacity>
             </View>
@@ -213,11 +224,11 @@ export default function Login({ navigation }) {
             activeOpacity={0.9}
           >
             {loading ? (
-              <ActivityIndicator color="#0A0A0A" />
+              <ActivityIndicator color={colors.accentText} />
             ) : (
               <View style={styles.buttonRow}>
                 <Text style={styles.buttonText}>Sign In</Text>
-                <Icon name="arrow-forward" size={18} color="#0A0A0A" />
+                <Icon name="arrow-forward" size={18} color={colors.accentText} />
               </View>
             )}
           </TouchableOpacity>
@@ -239,48 +250,63 @@ export default function Login({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.backgroundWarm },
-  content: { padding: 20, paddingBottom: 34 },
+  screen: { flex: 1, backgroundColor: colors.background },
+  content: { padding: 20 },
   heroBadge: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    backgroundColor: "rgba(197,160,112,0.12)",
-    borderColor: "rgba(197,160,112,0.32)",
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
-    marginTop: 18,
+    gap: 10,
     alignSelf: "flex-start",
-    marginBottom: 14,
+    marginBottom: 20,
   },
-  heroBadgeText: { color: colors.accent, fontWeight: "900", fontSize: 12 },
+  logoBadge: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: colors.accent,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  logoBadgeText: { fontSize: 13, fontWeight: "900", color: colors.accentText, letterSpacing: 0.3 },
+  heroBadgeText: { color: colors.text, fontWeight: "800", fontSize: 15 },
   title: {
-    fontSize: 30,
-    fontWeight: "900",
-    color: "#F5F5F0",
-    marginTop: 6,
-    marginBottom: 10,
+    fontSize: 28,
+    fontWeight: "800",
+    color: colors.text,
+    marginBottom: 8,
   },
-  subtitle: { color: colors.textMuted, fontSize: 14, lineHeight: 20, marginBottom: 18, fontWeight: "700" },
+  subtitle: {
+    color: colors.textMuted,
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 20,
+    fontWeight: "600",
+  },
   card: {
-    backgroundColor: "rgba(255,255,255,0.03)",
+    backgroundColor: colors.surface,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: "rgba(197,160,112,0.22)",
+    borderColor: colors.border,
     padding: 16,
     marginBottom: 18,
+    ...shadows.card,
   },
-  sectionTitle: { color: colors.textMuted, fontSize: 12, fontWeight: "900", letterSpacing: 1, textTransform: "uppercase", marginBottom: 12 },
+  sectionTitle: {
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
+    marginBottom: 12,
+  },
   inputWrap: { marginBottom: 14 },
-  inputLabel: { color: colors.textMuted, fontSize: 12, fontWeight: "900", marginBottom: 8 },
+  inputLabel: { color: colors.textSecondary, fontSize: 12, fontWeight: "700", marginBottom: 8 },
   input: {
     borderWidth: 1,
-    borderColor: "rgba(197,160,112,0.25)",
+    borderColor: colors.border,
     padding: 14,
     borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.03)",
+    backgroundColor: colors.surface,
     fontSize: 15,
     color: colors.text,
   },
@@ -288,9 +314,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "rgba(197,160,112,0.25)",
+    borderColor: colors.border,
     borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.03)",
+    backgroundColor: colors.surface,
   },
   passwordInput: { flex: 1, paddingVertical: 14, paddingHorizontal: 14, fontSize: 15, color: colors.text },
   eyeIcon: { padding: 12 },
@@ -303,25 +329,25 @@ const styles = StyleSheet.create({
   },
   forgotText: {
     color: colors.accent,
-    fontWeight: "800",
+    fontWeight: "700",
     fontSize: 13,
-    textDecorationLine: "underline",
   },
   button: {
     backgroundColor: colors.accent,
     paddingVertical: 16,
-    borderRadius: 16,
+    borderRadius: 14,
     alignItems: "center",
     marginTop: 4,
+    ...shadows.button,
   },
   buttonRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
-  buttonText: { color: "#0A0A0A", fontWeight: "900", fontSize: 16 },
+  buttonText: { color: colors.accentText, fontWeight: "800", fontSize: 16 },
   link: { marginTop: 14, alignItems: "center", paddingBottom: 6 },
-  linkText: { color: colors.textMuted, fontWeight: "800", textDecorationLine: "underline" },
+  linkText: { color: colors.accent, fontWeight: "700" },
   buttonDisabled: { opacity: 0.7 },
   statusText: {
     color: colors.textMuted,
-    fontWeight: "700",
+    fontWeight: "600",
     fontSize: 13,
     lineHeight: 18,
     marginTop: 10,

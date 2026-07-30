@@ -136,18 +136,20 @@ export default function Signup({ navigation }) {
                 Client
               </Text>
             </TouchableOpacity>
+            {/* Display label only — the stored profiles.role value stays
+                "barber", which App.js/Login.js and the RLS policies key off. */}
             <TouchableOpacity
               style={[styles.roleBtn, role === "barber" && styles.activeRole]}
               onPress={() => setRole("barber")}
               activeOpacity={0.9}
             >
               <Icon
-                name="cut-outline"
+                name="storefront-outline"
                 size={18}
                 color={role === "barber" ? colors.accentText : colors.textMuted}
               />
               <Text style={role === "barber" ? styles.activeRoleText : styles.roleText}>
-                Barber / Pro
+                Business
               </Text>
             </TouchableOpacity>
           </View>
