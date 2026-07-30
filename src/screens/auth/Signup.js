@@ -26,6 +26,11 @@ import { colors, shadows } from "../../theme/barberTheme";
 // or domain. Real deliverability is proven by the confirmation email.
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const MIN_PASSWORD_LENGTH = 8;
+// Loose on purpose: accepts local (0821234567) and international
+// (+27821234567) South African formats without forcing a strict shape —
+// there's no OTP step yet to prove the number is real, so this is just a
+// sanity check against typos, not a claim of verification.
+const PHONE_DIGITS_PATTERN = /^\+?[0-9]{9,13}$/;
 
 export default function Signup({ navigation }) {
   useLightStatusBar(colors.background);
@@ -33,6 +38,7 @@ export default function Signup({ navigation }) {
   const keyboardInset = useKeyboardInset();
   const [firstName, setFirstName] = useState("");
   const [surname, setSurname] = useState("");
+  const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -48,13 +54,20 @@ export default function Signup({ navigation }) {
     // Addresses are case-insensitive in practice; normalising stops
     // "Sam@Gmail.com" and "sam@gmail.com" reading as two different people.
     const cleanEmail = email.trim().toLowerCase();
+    const cleanPhone = phone.trim();
+    // Strip spaces/dashes for validation only — store what they typed.
+    const phoneDigitsOnly = cleanPhone.replace(/[\s-]/g, "");
 
-    if (!cleanFirstName || !cleanSurname || !cleanEmail || !password || !confirmPassword) {
-      Alert.alert("Missing details", "Please fill in all fields, including your name.");
+    if (!cleanFirstName || !cleanSurname || !cleanEmail || !cleanPhone || !password || !confirmPassword) {
+      Alert.alert("Missing details", "Please fill in all fields, including your name and phone number.");
       return;
     }
     if (!EMAIL_PATTERN.test(cleanEmail)) {
       Alert.alert("Check your email", "That email address doesn't look right. Please check it and try again.");
+      return;
+    }
+    if (!PHONE_DIGITS_PATTERN.test(phoneDigitsOnly)) {
+      Alert.alert("Check your phone number", "Enter a valid phone number, e.g. 082 123 4567.");
       return;
     }
     if (password.length < MIN_PASSWORD_LENGTH) {
@@ -86,7 +99,7 @@ export default function Signup({ navigation }) {
         email: cleanEmail,
         password,
         options: {
-          data: { full_name: `${cleanFirstName} ${cleanSurname}`, role },
+          data: { full_name: `${cleanFirstName} ${cleanSurname}`, role, phone_number: cleanPhone },
         },
       });
 
@@ -208,6 +221,20 @@ export default function Signup({ navigation }) {
                 onSubmitEditing={Keyboard.dismiss}
               />
             </View>
+          </View>
+
+          <View style={[styles.inputWrap, styles.fieldBlock]}>
+            <Text style={styles.inputLabel}>Phone number</Text>
+            <TextInput
+              placeholder="082 123 4567"
+              placeholderTextColor={colors.textMuted}
+              style={styles.input}
+              value={phone}
+              onChangeText={setPhone}
+              keyboardType="phone-pad"
+              returnKeyType="done"
+              onSubmitEditing={Keyboard.dismiss}
+            />
           </View>
 
           <View style={styles.inputWrap}>
