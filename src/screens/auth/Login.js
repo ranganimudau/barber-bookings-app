@@ -69,6 +69,19 @@ export default function Login({ navigation }) {
     }
   };
 
+  const handleResendConfirmation = async (targetEmail) => {
+    try {
+      const { error } = await supabase.auth.resend({ type: "signup", email: targetEmail });
+      if (error) throw error;
+      Alert.alert("Link sent", `We sent a new confirmation link to ${targetEmail}.`);
+    } catch (e) {
+      Alert.alert(
+        "Could not resend",
+        e?.message || "Something went wrong sending the link. Try again shortly."
+      );
+    }
+  };
+
   const handleLogin = async () => {
     if (!email || !password) {
       Alert.alert("Error", "Please enter both email and password.");
@@ -84,7 +97,25 @@ export default function Login({ navigation }) {
       });
 
     if (authError) {
-      Alert.alert("Login Error", authError.message);
+      // Supabase rejects unconfirmed accounts once email confirmation is
+      // required. Surfacing the raw message dead-ends people whose link
+      // expired or never arrived, so offer to send a fresh one.
+      const unconfirmed =
+        authError.code === "email_not_confirmed" ||
+        /email not confirmed/i.test(authError.message || "");
+
+      if (unconfirmed) {
+        Alert.alert(
+          "Confirm your email",
+          `Your account isn't activated yet. Open the confirmation link we sent to ${email.trim()}.`,
+          [
+            { text: "OK", style: "cancel" },
+            { text: "Resend link", onPress: () => handleResendConfirmation(email.trim().toLowerCase()) },
+          ]
+        );
+      } else {
+        Alert.alert("Login Error", authError.message);
+      }
       setLoading(false);
       setStatusMessage("");
       return;

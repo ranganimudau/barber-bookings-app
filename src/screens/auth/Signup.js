@@ -21,6 +21,11 @@ import { useLightStatusBar } from "../../hooks/useLightStatusBar";
 import { supabase } from "../../supabase/supabaseClient";
 import { colors, shadows } from "../../theme/barberTheme";
 
+// Deliberately permissive — just catches obvious typos like a missing "@"
+// or domain. Real deliverability is proven by the confirmation email.
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+const MIN_PASSWORD_LENGTH = 8;
+
 export default function Signup({ navigation }) {
   useLightStatusBar(colors.background);
   const insets = useSafeAreaInsets();
@@ -37,58 +42,77 @@ export default function Signup({ navigation }) {
   const [statusMessage, setStatusMessage] = useState("");
 
   const handleSignup = async () => {
-    if (!firstName || !surname || !email || !password || !confirmPassword) {
-      Alert.alert("Error", "Please fill in all fields, including your name.");
+    const cleanFirstName = firstName.trim();
+    const cleanSurname = surname.trim();
+    // Addresses are case-insensitive in practice; normalising stops
+    // "Sam@Gmail.com" and "sam@gmail.com" reading as two different people.
+    const cleanEmail = email.trim().toLowerCase();
+
+    if (!cleanFirstName || !cleanSurname || !cleanEmail || !password || !confirmPassword) {
+      Alert.alert("Missing details", "Please fill in all fields, including your name.");
+      return;
+    }
+    if (!EMAIL_PATTERN.test(cleanEmail)) {
+      Alert.alert("Check your email", "That email address doesn't look right. Please check it and try again.");
+      return;
+    }
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      Alert.alert(
+        "Password too short",
+        `Use at least ${MIN_PASSWORD_LENGTH} characters, with a mix of letters and numbers.`
+      );
+      return;
+    }
+    if (!/[A-Za-z]/.test(password) || !/[0-9]/.test(password)) {
+      Alert.alert("Password too weak", "Include at least one letter and one number.");
       return;
     }
     if (password !== confirmPassword) {
-      Alert.alert("Error", "Password and confirmation do not match.");
+      Alert.alert("Passwords don't match", "Password and confirmation do not match.");
       return;
     }
+
     setStatusMessage("Creating your account...");
     setLoading(true);
 
-    // 1. Create user in Supabase Auth
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email,
-      password,
-    });
-
-    if (authError) {
-      Alert.alert("Signup Error", authError.message);
-      setLoading(false);
-      setStatusMessage("");
-      return;
-    }
-
-    // 2. Add full name and role to 'profiles' table
-    if (authData.user) {
-      const { error: profileError } = await supabase.from("profiles").insert([
-        {
-          id: authData.user.id,
-          email: email,
-          role: role,
-          full_name: `${firstName} ${surname}`,
+    try {
+      // full_name/role travel as user metadata so the handle_new_user trigger
+      // can create the profiles row in the same transaction as the auth user.
+      // Doing it server-side removes the old failure mode where the auth
+      // account existed but its profile didn't, permanently locking the
+      // person out (couldn't log in, couldn't re-register).
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: cleanEmail,
+        password,
+        options: {
+          data: { full_name: `${cleanFirstName} ${cleanSurname}`, role },
         },
-      ]);
+      });
 
-      if (profileError) {
-        // Log the error for debugging but don't stop the user from logging in later
-        console.error("Profile Insertion Error:", profileError.message);
+      if (authError) {
+        Alert.alert("Signup Error", authError.message);
+        return;
+      }
+
+      // No session back means the project requires email confirmation, so
+      // don't tell people to check their inbox unless one was actually sent.
+      const needsEmailConfirmation = !authData?.session;
+
+      if (needsEmailConfirmation) {
         Alert.alert(
-          "Partial Success",
-          "Account created, but profile failed. Please try logging in.",
+          "Confirm your email",
+          `We sent a confirmation link to ${cleanEmail}. Open it to activate your account, then log in.`
         );
       } else {
-        Alert.alert(
-          "Success",
-          "Account created! Please check your email for a verification link.",
-        );
-        navigation.navigate("Login");
+        Alert.alert("Welcome to SkoonBook", "Your account is ready — log in to get started.");
       }
+      navigation.navigate("Login");
+    } catch (e) {
+      Alert.alert("Signup Error", e?.message || "Could not create your account. Please try again.");
+    } finally {
+      setLoading(false);
+      setStatusMessage("");
     }
-    setLoading(false);
-    setStatusMessage("");
   };
 
   return (
@@ -225,6 +249,9 @@ export default function Signup({ navigation }) {
                 />
               </TouchableOpacity>
             </View>
+            <Text style={styles.inputHint}>
+              At least {MIN_PASSWORD_LENGTH} characters, including a letter and a number.
+            </Text>
           </View>
 
           <View style={[styles.inputWrap, styles.fieldBlock]}>
@@ -358,6 +385,7 @@ const styles = StyleSheet.create({
   inputWrap: { flex: 1 },
   fieldBlock: { flexGrow: 0, marginBottom: 14 },
   inputLabel: { color: colors.textSecondary, fontSize: 12, fontWeight: "700", marginBottom: 8 },
+  inputHint: { color: colors.textMuted, fontSize: 11, marginTop: 6, lineHeight: 15 },
   input: {
     borderWidth: 1,
     borderColor: colors.border,
