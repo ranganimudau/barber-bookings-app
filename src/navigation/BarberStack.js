@@ -37,7 +37,7 @@ function SettingsStack() {
     >
       {/* Root of the stack has its own in-screen title — hide the duplicate stack header. */}
       <Stack.Screen name="BarberSettings" component={BarberSettings} options={{ title: "Settings", headerShown: false }} />
-      <Stack.Screen name="EditProfile" component={EditProfile} options={{ title: "Edit Shop Info" }} />
+      <Stack.Screen name="EditProfile" component={EditProfile} options={{ title: "Edit Business Info" }} />
       <Stack.Screen name="Services" component={Services} options={{ title: "Manage Services" }} />
       <Stack.Screen name="SubscriptionSettings" component={SubscriptionSettings} options={{ title: "Subscription" }} />
       <Stack.Screen

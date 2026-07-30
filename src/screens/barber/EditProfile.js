@@ -258,7 +258,7 @@ export default function EditProfile() {
   const handleDeleteAccountPermanently = () => {
     Alert.alert(
       "Delete account permanently?",
-      "This removes your shop listing, services, availability, bookings, subscription state, and your login. Clients will no longer see your business. This cannot be undone.",
+      "This removes your listing, services, availability, bookings, subscription state, and your login. Clients will no longer see your business. This cannot be undone.",
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -267,7 +267,7 @@ export default function EditProfile() {
           onPress: () => {
             Alert.alert(
               "Are you sure?",
-              "Your barber account and data will be permanently deleted.",
+              "Your account and data will be permanently deleted.",
               [
                 { text: "Cancel", style: "cancel" },
                 {
@@ -347,12 +347,12 @@ export default function EditProfile() {
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.label}>Shop Name</Text>
+          <Text style={styles.label}>Business Name</Text>
           <TextInput
             style={[styles.input, !isEditingInfo && styles.inputLocked]}
             value={shopName}
             onChangeText={setShopName}
-            placeholder="Shop Name"
+            placeholder="Business Name"
             editable={isEditingInfo}
             returnKeyType="done"
             onSubmitEditing={Keyboard.dismiss}
@@ -376,14 +376,14 @@ export default function EditProfile() {
             value={description}
             onChangeText={setDescription}
             multiline
-            placeholder="Describe your shop or add your slogan"
+            placeholder="Describe your business or add your slogan"
             editable={isEditingInfo}
             returnKeyType="done"
             blurOnSubmit
             onSubmitEditing={Keyboard.dismiss}
           />
 
-          <Text style={styles.label}>Shop Address</Text>
+          <Text style={styles.label}>Business Address</Text>
           <TextInput
             style={[styles.input, styles.textArea, !isEditingInfo && styles.inputLocked]}
             value={address}
@@ -403,7 +403,7 @@ export default function EditProfile() {
                 setMapSubtitle(
                   address.trim()
                     ? address.trim()
-                    : "Place the pin on your shop entrance."
+                    : "Place the pin on your entrance."
                 );
                 setSelectedFormattedAddress(address.trim());
                 setShowPreview(true);
@@ -418,7 +418,7 @@ export default function EditProfile() {
                   const loc = await Location.getCurrentPositionAsync({});
                   setPreviewCoords(loc.coords); setSelectedCoords(loc.coords);
                   setSelectedFormattedAddress("");
-                  setMapSubtitle("GPS position — drag the pin if this isn't your shop entrance.");
+                  setMapSubtitle("GPS position — drag the pin if this isn't your entrance.");
                   Alert.alert("Location Updated", "Pin moved to your current GPS position.");
                 }
             }}>
@@ -477,7 +477,7 @@ export default function EditProfile() {
               <Icon name="chevron-back" size={26} color={colors.text} />
             </TouchableOpacity>
             <View style={{ flex: 1 }}>
-              <Text style={modalStyles.modalHeaderTitle}>Place pin on your shop</Text>
+              <Text style={modalStyles.modalHeaderTitle}>Place pin on your business</Text>
               {mapSubtitle ? (
                 <Text style={modalStyles.modalSubtitle} numberOfLines={2}>{mapSubtitle}</Text>
               ) : null}
@@ -499,7 +499,7 @@ export default function EditProfile() {
               onPress={(e) => {
                 setSelectedCoords(e.nativeEvent.coordinate);
                 setSelectedFormattedAddress("");
-                setMapSubtitle("Custom position — align the pin with your shop entrance.");
+                setMapSubtitle("Custom position — align the pin with your entrance.");
               }}
             >
               <Marker
@@ -508,7 +508,7 @@ export default function EditProfile() {
                 onDragEnd={(e) => {
                   setSelectedCoords(e.nativeEvent.coordinate);
                   setSelectedFormattedAddress("");
-                  setMapSubtitle("Custom position — align the pin with your shop entrance.");
+                  setMapSubtitle("Custom position — align the pin with your entrance.");
                 }}
               />
             </MapView>

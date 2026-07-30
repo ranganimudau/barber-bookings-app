@@ -25,7 +25,7 @@ import {
   isSubscriptionEligible,
 } from "../../utils/subscriptionState";
 
-const TRIAL_BENEFITS = ["Unlimited accepted bookings for 20 days", "Then R70/month, billed automatically", "Unlock all barber features"];
+const TRIAL_BENEFITS = ["Unlimited accepted bookings for 20 days", "Then R70/month, billed automatically", "Unlock all pro features"];
 
 const LOAD_TIMEOUT_MS = 10000;
 
@@ -192,7 +192,7 @@ export default function SubscriptionPaywall({ navigation, route }) {
           <Text style={styles.kicker}>Payment setup</Text>
         </View>
         <Text style={styles.heroTitle}>Choose 1 option to continue</Text>
-        <Text style={styles.heroSub}>Both options unlock barber bookings. Pick what fits you now.</Text>
+        <Text style={styles.heroSub}>Both options unlock bookings. Pick what fits you now.</Text>
         <View style={styles.statusPill}>
           <View style={[styles.statusDot, eligible && styles.statusDotOk]} />
           <Text style={styles.statusPillText} numberOfLines={2}>

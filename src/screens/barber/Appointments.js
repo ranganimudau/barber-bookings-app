@@ -26,7 +26,7 @@ export default function Appointments({ navigation }) {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("active");
-  const [shopName, setShopName] = useState("Barber Shop");
+  const [shopName, setShopName] = useState("Your Business");
 
   const [barberId, setBarberId] = useState(null);
   const [subscriptionState, setSubscriptionState] = useState(null);

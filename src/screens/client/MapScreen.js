@@ -117,7 +117,7 @@ export default function MapScreen({ navigation }) {
     if (num) {
       Linking.openURL(`tel:${num}`);
     } else {
-      Alert.alert("No Number", "This barber hasn't provided a contact number.");
+      Alert.alert("No Number", "This business hasn't provided a contact number.");
     }
   };
 
@@ -155,7 +155,7 @@ export default function MapScreen({ navigation }) {
         <View style={styles.searchBar}>
           <Icon name="search" size={20} color="#888" />
           <TextInput
-            placeholder="Search barber shops..."
+            placeholder="Search by name or service..."
             style={styles.searchInput}
             value={searchQuery}
             onChangeText={handleSearch}
@@ -209,7 +209,7 @@ export default function MapScreen({ navigation }) {
 
       <View style={styles.listOverlay}>
         <View style={styles.handle} />
-        <Text style={styles.listTitle}>Nearby Barbers ({filteredBarbers.length})</Text>
+        <Text style={styles.listTitle}>Nearby pros ({filteredBarbers.length})</Text>
         <FlatList
           data={filteredBarbers}
           keyExtractor={(item) => item.id}

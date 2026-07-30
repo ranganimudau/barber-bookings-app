@@ -168,7 +168,7 @@ export default function MyBookings({ navigation }) {
             <View style={[styles.shopIconWrap, { backgroundColor: themeColors.accentSoft, borderColor: themeColors.border }]}>
               <Icon name="cut" size={20} color={colors.accent} />
             </View>
-            <Text style={[styles.shopName, { color: themeColors.text }]}>{item.barbers?.shop_name || "Barber Shop"}</Text>
+            <Text style={[styles.shopName, { color: themeColors.text }]}>{item.barbers?.shop_name || "Business"}</Text>
           </View>
           <View style={getStatusStyle(derivedStatus)}>
             <Text style={[styles.statusText, { color: getStatusTextColor(derivedStatus) }]}>{derivedStatus}</Text>

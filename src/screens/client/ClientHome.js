@@ -219,7 +219,7 @@ export default function ClientHome({ navigation }) {
           <Icon name="compass-outline" size={26} color={themeColors.accent} />
         </View>
         <ActivityIndicator size="large" color={themeColors.accent} />
-        <Text style={[styles.loadingText, { color: themeColors.textSecondary }]}>Finding barbers near you...</Text>
+        <Text style={[styles.loadingText, { color: themeColors.textSecondary }]}>Finding pros near you...</Text>
       </View>
     );
   }
@@ -236,7 +236,7 @@ export default function ClientHome({ navigation }) {
           },
         ]}
       >
-        <Text style={[styles.mapHeaderTitle, { color: themeColors.text }]}>Find a barber</Text>
+        <Text style={[styles.mapHeaderTitle, { color: themeColors.text }]}>Find a pro</Text>
         <Text style={[styles.mapHeaderSub, { color: themeColors.textSecondary }]}>Tap pins or cards to preview and book.</Text>
       </View>
       <MapView
@@ -331,7 +331,7 @@ export default function ClientHome({ navigation }) {
         handleStyle={[styles.sheetHandle, { backgroundColor: themeColors.surfaceAlt }]}
       >
         <View style={styles.contentContainer}>
-          <Text style={[styles.sheetTitle, { color: themeColors.text }]}>Nearby barbers</Text>
+          <Text style={[styles.sheetTitle, { color: themeColors.text }]}>Nearby pros</Text>
           <Text style={[styles.sheetSubtitle, { color: themeColors.textSecondary }]}>Tap a pin or card to view and book</Text>
           <View style={styles.metaRow}>
             <View style={[styles.metaPill, { backgroundColor: themeColors.accentSoft, borderColor: themeColors.border }]}>
@@ -396,7 +396,7 @@ export default function ClientHome({ navigation }) {
             <Icon name="search" size={20} color={themeColors.textMuted} />
             <TextInput
               style={[styles.input, { color: themeColors.text }]}
-              placeholder="Search by shop name..."
+              placeholder="Search by name..."
               placeholderTextColor={themeColors.textMuted}
               value={searchQuery}
               onChangeText={setSearchQuery}
@@ -415,8 +415,8 @@ export default function ClientHome({ navigation }) {
                 <View style={[styles.emptyIconCircle, { backgroundColor: themeColors.surface, borderColor: themeColors.border }]}>
                   <Icon name="search-outline" size={22} color={themeColors.accent} />
                 </View>
-                <Text style={[styles.emptyTitle, { color: themeColors.text }]}>No barber found</Text>
-                <Text style={[styles.emptySub, { color: themeColors.textSecondary }]}>Try another shop name or clear search.</Text>
+                <Text style={[styles.emptyTitle, { color: themeColors.text }]}>No results found</Text>
+                <Text style={[styles.emptySub, { color: themeColors.textSecondary }]}>Try another name or clear search.</Text>
               </View>
             }
           />

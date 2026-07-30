@@ -47,7 +47,7 @@ export default function RateBarberModal({ visible, onClose, appointment, onSubmi
 
   if (!appointment) return null;
 
-  const shopName = appointment.barbers?.shop_name || "Barber";
+  const shopName = appointment.barbers?.shop_name || "Professional";
 
   return (
     <Modal

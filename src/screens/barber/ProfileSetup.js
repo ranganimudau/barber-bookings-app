@@ -209,7 +209,7 @@ export default function ProfileSetup({ navigation }) {
 
   const handleSaveProfile = async () => {
     if (!shopName || !address || !phone) {
-      Alert.alert("Error", "Please fill in all shop details.");
+      Alert.alert("Error", "Please fill in all business details.");
       return;
     }
     const servicesToSave = services.filter((s) => s.name.trim());
@@ -513,7 +513,7 @@ export default function ProfileSetup({ navigation }) {
       bounces={false}
       overScrollMode="never"
     >
-      <Text style={[styles.header, { marginTop: Math.max(insets.top, 24) + 24 }]}>Shop Setup</Text>
+      <Text style={[styles.header, { marginTop: Math.max(insets.top, 24) + 24 }]}>Business Setup</Text>
       
       <View style={styles.section}>
         <View style={styles.avatarContainer}>
@@ -531,9 +531,9 @@ export default function ProfileSetup({ navigation }) {
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.fieldLabel}>Shop Name</Text>
+        <Text style={styles.fieldLabel}>Business Name</Text>
         <TextInput
-          placeholder="Shop Name"
+          placeholder="Business Name"
           style={styles.input}
           value={shopName}
           onChangeText={setShopName}
@@ -554,7 +554,7 @@ export default function ProfileSetup({ navigation }) {
 
         <Text style={styles.fieldLabel}>Description / Slogan</Text>
         <TextInput
-          placeholder="Describe your shop or add your slogan"
+          placeholder="Describe your business or add your slogan"
           style={[styles.input, styles.textArea]}
           value={description}
           onChangeText={setDescription}
@@ -589,7 +589,7 @@ export default function ProfileSetup({ navigation }) {
                 <Icon name="chevron-back" size={26} color={colors.text} />
               </TouchableOpacity>
               <View style={{ flex: 1 }}>
-                <Text style={styles.modalHeaderTitle}>Place pin on your shop</Text>
+                <Text style={styles.modalHeaderTitle}>Place pin on your business</Text>
                 {mapSubtitle ? (
                   <Text style={styles.modalSubtitle} numberOfLines={2}>{mapSubtitle}</Text>
                 ) : null}
@@ -631,7 +631,7 @@ export default function ProfileSetup({ navigation }) {
                 onPress={(e) => {
                   setSelectedCoords(e.nativeEvent.coordinate);
                   setSelectedFormattedAddress("");
-                  setMapSubtitle("Custom position — align the pin with your shop entrance.");
+                  setMapSubtitle("Custom position — align the pin with your entrance.");
                 }}
               >
                 <Marker
@@ -641,7 +641,7 @@ export default function ProfileSetup({ navigation }) {
                     const coord = e.nativeEvent.coordinate;
                     setSelectedCoords(coord);
                     setSelectedFormattedAddress("");
-                    setMapSubtitle("Custom position — align the pin with your shop entrance.");
+                    setMapSubtitle("Custom position — align the pin with your entrance.");
                   }}
                 />
               </MapView>

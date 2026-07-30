@@ -99,7 +99,7 @@ export default function ClientStack() {
       <Tab.Screen
         name="Find"
         component={HomeStack}
-        options={{ title: 'Find a barber' }}
+        options={{ title: 'Find a pro' }}
       />
       <Tab.Screen
         name="My Bookings"

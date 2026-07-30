@@ -18,7 +18,7 @@ const menuItems = [
 export default function BarberSettings({ navigation }) {
   useLightStatusBar(colors.background);
   const insets = useSafeAreaInsets();
-  const [shopName, setShopName] = useState("Your Shop");
+  const [shopName, setShopName] = useState("Your Business");
   const [avatarUrl, setAvatarUrl] = useState(null);
 
   useFocusEffect(
@@ -33,7 +33,7 @@ export default function BarberSettings({ navigation }) {
           .eq("id", user.id)
           .maybeSingle();
         if (cancelled || !data) return;
-        setShopName(data.shop_name || "Your Shop");
+        setShopName(data.shop_name || "Your Business");
         setAvatarUrl(data.avatar_url ? resolveStorageImageUrl(data.avatar_url) : null);
       })();
       return () => { cancelled = true; };
@@ -54,14 +54,14 @@ export default function BarberSettings({ navigation }) {
       params: {
         title: "Data Policy",
         draft: true,
-        body: "This Data Policy is a placeholder. The app collects the information needed to operate bookings, payments, and your shop profile — name, contact details, location, and booking history. A full data/privacy policy will be published here before public launch.",
+        body: "This Data Policy is a placeholder. The app collects the information needed to operate bookings, payments, and your business profile — name, contact details, location, and booking history. A full data/privacy policy will be published here before public launch.",
       },
     },
     {
       title: "About",
       params: {
         title: "About",
-        body: "This app connects barbers, salons, and beauty professionals with clients for easy booking and payment. It's currently in testing.",
+        body: "This app connects barbers, nail techs, braiders, salons and other beauty professionals with clients for easy booking and payment. It's currently in testing.",
       },
     },
     {
@@ -99,12 +99,12 @@ export default function BarberSettings({ navigation }) {
         )}
         <View style={styles.profileTextWrap}>
           <Text style={styles.profileName} numberOfLines={1}>{shopName}</Text>
-          <Text style={styles.profileHint}>Edit your shop profile</Text>
+          <Text style={styles.profileHint}>Edit your business profile</Text>
         </View>
         <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
       </TouchableOpacity>
 
-      <Text style={styles.sectionTitle}>Manage Shop</Text>
+      <Text style={styles.sectionTitle}>Manage Business</Text>
       <View style={styles.menuGroup}>
         {menuItems.map((item, index) => (
           <TouchableOpacity

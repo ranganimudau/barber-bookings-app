@@ -272,7 +272,7 @@ export default function BarberProfile({ route, navigation }) {
     if (unavailableDateMap[selectedDate]?.disabled) {
       Alert.alert(
         "Unavailable",
-        "This barber is unavailable on the selected date.",
+        "This business is unavailable on the selected date.",
       );
       return;
     }
@@ -280,7 +280,7 @@ export default function BarberProfile({ route, navigation }) {
     if (subscriptionState && !isSubscriptionEligible(subscriptionState)) {
       Alert.alert(
         "Bookings locked",
-        "This barber is not receiving bookings right now. Please try again later.",
+        "This business is not receiving bookings right now. Please try again later.",
       );
       return;
     }
@@ -622,7 +622,7 @@ export default function BarberProfile({ route, navigation }) {
             <Text
               style={[styles.profileModalName, { color: themeColors.text }]}
             >
-              {shop?.shop_name || "Barber Shop"}
+              {shop?.shop_name || "Business"}
             </Text>
             <View style={styles.profileModalRow}>
               <Icon
@@ -890,7 +890,7 @@ export default function BarberProfile({ route, navigation }) {
             if (unavailableDateMap[day.dateString]?.disabled) {
               Alert.alert(
                 "Unavailable",
-                "This barber is unavailable on that day.",
+                "This business is unavailable on that day.",
               );
               return;
             }
