@@ -12,13 +12,17 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Icon from "react-native-vector-icons/Ionicons";
 import KeyboardDoneBar from "../../components/common/KeyboardDoneBar";
 import { useKeyboardInset } from "../../hooks/useKeyboardInset";
+import { useLightStatusBar } from "../../hooks/useLightStatusBar";
 import { supabase } from "../../supabase/supabaseClient";
-import { colors } from "../../theme/clientTheme";
+import { colors, shadows } from "../../theme/barberTheme";
 
 export default function Signup({ navigation }) {
+  useLightStatusBar(colors.background);
+  const insets = useSafeAreaInsets();
   const keyboardInset = useKeyboardInset();
   const [firstName, setFirstName] = useState("");
   const [surname, setSurname] = useState("");
@@ -92,19 +96,26 @@ export default function Signup({ navigation }) {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingBottom: 34 + keyboardInset + 20 }]}
+        contentContainerStyle={[
+          styles.content,
+          { paddingTop: Math.max(insets.top, 24) + 20, paddingBottom: 34 + keyboardInset + 20 },
+        ]}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
         showsVerticalScrollIndicator={false}
+        bounces={false}
+        overScrollMode="never"
       >
         <View style={styles.heroBadge}>
-          <Icon name="sparkles-outline" size={14} color={colors.accent} />
+          <View style={styles.logoBadge}>
+            <Text style={styles.logoBadgeText}>SB</Text>
+          </View>
           <Text style={styles.heroBadgeText}>SkoonBook</Text>
         </View>
 
         <Text style={styles.title}>Create your account</Text>
         <Text style={styles.subtitle}>
-          Book smarter, get live updates, and unlock earnings — all in one premium app.
+          Book smarter, get live updates, and unlock earnings — all in one app.
         </Text>
 
         <View style={styles.card}>
@@ -119,9 +130,9 @@ export default function Signup({ navigation }) {
               <Icon
                 name="person-outline"
                 size={18}
-                color={role === "client" ? "#0A0A0A" : colors.textMuted}
+                color={role === "client" ? colors.accentText : colors.textMuted}
               />
-              <Text style={role === "client" ? styles.whiteText : styles.roleText}>
+              <Text style={role === "client" ? styles.activeRoleText : styles.roleText}>
                 Client
               </Text>
             </TouchableOpacity>
@@ -133,9 +144,9 @@ export default function Signup({ navigation }) {
               <Icon
                 name="cut-outline"
                 size={18}
-                color={role === "barber" ? "#0A0A0A" : colors.textMuted}
+                color={role === "barber" ? colors.accentText : colors.textMuted}
               />
-              <Text style={role === "barber" ? styles.whiteText : styles.roleText}>
+              <Text style={role === "barber" ? styles.activeRoleText : styles.roleText}>
                 Barber / Pro
               </Text>
             </TouchableOpacity>
@@ -206,7 +217,7 @@ export default function Signup({ navigation }) {
                 <Icon
                   name={showPassword ? "eye-off-outline" : "eye-outline"}
                   size={22}
-                  color={colors.textSecondary}
+                  color={colors.textMuted}
                 />
               </TouchableOpacity>
             </View>
@@ -234,7 +245,7 @@ export default function Signup({ navigation }) {
                 <Icon
                   name={showConfirmPassword ? "eye-off-outline" : "eye-outline"}
                   size={22}
-                  color={colors.textSecondary}
+                  color={colors.textMuted}
                 />
               </TouchableOpacity>
             </View>
@@ -247,11 +258,11 @@ export default function Signup({ navigation }) {
             activeOpacity={0.9}
           >
             {loading ? (
-              <ActivityIndicator color="#0A0A0A" />
+              <ActivityIndicator color={colors.accentText} />
             ) : (
               <View style={styles.buttonRow}>
                 <Text style={styles.buttonText}>Sign Up</Text>
-                <Icon name="arrow-forward" size={18} color="#0A0A0A" />
+                <Icon name="arrow-forward" size={18} color={colors.accentText} />
               </View>
             )}
           </TouchableOpacity>
@@ -273,72 +284,82 @@ export default function Signup({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.backgroundWarm },
-  content: { padding: 20, paddingBottom: 34 },
+  screen: { flex: 1, backgroundColor: colors.background },
+  content: { padding: 20 },
   heroBadge: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 10,
     alignSelf: "flex-start",
-    backgroundColor: "rgba(197,160,112,0.12)",
-    borderColor: "rgba(197,160,112,0.32)",
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
-    marginBottom: 14,
+    marginBottom: 20,
   },
-  heroBadgeText: { color: colors.accent, fontWeight: "900", fontSize: 12 },
+  logoBadge: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: colors.accent,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  logoBadgeText: { fontSize: 13, fontWeight: "900", color: colors.accentText, letterSpacing: 0.3 },
+  heroBadgeText: { color: colors.text, fontWeight: "800", fontSize: 15 },
   title: {
     fontSize: 28,
-    fontWeight: "900",
+    fontWeight: "800",
     textAlign: "left",
-    color: "#F5F5F0",
-    marginTop: 12,
-    marginBottom: 10,
+    color: colors.text,
+    marginBottom: 8,
   },
   subtitle: {
     color: colors.textMuted,
     fontSize: 14,
     lineHeight: 20,
-    marginBottom: 18,
-    fontWeight: "700",
+    marginBottom: 20,
+    fontWeight: "600",
   },
   card: {
-    backgroundColor: "rgba(255,255,255,0.03)",
+    backgroundColor: colors.surface,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: "rgba(197,160,112,0.22)",
+    borderColor: colors.border,
     padding: 16,
+    ...shadows.card,
   },
-  sectionTitle: { color: colors.textMuted, fontWeight: "900", fontSize: 12, letterSpacing: 1, textTransform: "uppercase", marginBottom: 10 },
+  sectionTitle: {
+    color: colors.textMuted,
+    fontWeight: "700",
+    fontSize: 12,
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
+    marginBottom: 10,
+  },
   roleContainer: { flexDirection: "row", gap: 12, marginBottom: 16 },
   roleBtn: {
     flex: 1,
-    borderRadius: 16,
+    borderRadius: 14,
     paddingVertical: 14,
     paddingHorizontal: 12,
-    backgroundColor: "rgba(255,255,255,0.02)",
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: "rgba(197,160,112,0.25)",
+    borderColor: colors.border,
     alignItems: "center",
     gap: 8,
     flexDirection: "row",
     justifyContent: "center",
   },
-  activeRole: { backgroundColor: "#0A0A0A", borderColor: "rgba(197,160,112,0.55)" },
-  roleText: { color: colors.textMuted, fontWeight: "800" },
-  whiteText: { color: "#F5F5F0", fontWeight: "900" },
+  activeRole: { backgroundColor: colors.accent, borderColor: colors.accent },
+  roleText: { color: colors.textSecondary, fontWeight: "700" },
+  activeRoleText: { color: colors.accentText, fontWeight: "800" },
   twoColRow: { flexDirection: "row", gap: 12, marginBottom: 14 },
   inputWrap: { flex: 1 },
   fieldBlock: { flexGrow: 0, marginBottom: 14 },
-  inputLabel: { color: colors.textMuted, fontSize: 12, fontWeight: "800", marginBottom: 8 },
+  inputLabel: { color: colors.textSecondary, fontSize: 12, fontWeight: "700", marginBottom: 8 },
   input: {
     borderWidth: 1,
-    borderColor: "rgba(197,160,112,0.25)",
+    borderColor: colors.border,
     padding: 14,
     borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.03)",
+    backgroundColor: colors.surface,
     fontSize: 15,
     color: colors.text,
   },
@@ -346,27 +367,28 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "rgba(197,160,112,0.25)",
+    borderColor: colors.border,
     borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.03)",
+    backgroundColor: colors.surface,
   },
   passwordInput: { flex: 1, paddingVertical: 14, paddingHorizontal: 14, fontSize: 15, color: colors.text },
   eyeIcon: { padding: 12 },
   button: {
     backgroundColor: colors.accent,
     paddingVertical: 16,
-    borderRadius: 16,
+    borderRadius: 14,
     alignItems: "center",
     marginTop: 14,
+    ...shadows.button,
   },
   buttonRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
-  buttonText: { color: "#0A0A0A", fontWeight: "900", fontSize: 16 },
+  buttonText: { color: colors.accentText, fontWeight: "800", fontSize: 16 },
   buttonDisabled: { opacity: 0.7 },
   link: { marginTop: 16, alignItems: "center", paddingBottom: 6 },
-  linkText: { color: colors.textMuted, fontWeight: "800", textDecorationLine: "underline" },
+  linkText: { color: colors.accent, fontWeight: "700" },
   statusText: {
     color: colors.textMuted,
-    fontWeight: "700",
+    fontWeight: "600",
     fontSize: 13,
     lineHeight: 18,
     marginTop: 10,
