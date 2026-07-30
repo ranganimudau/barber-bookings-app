@@ -5,10 +5,10 @@ import { useLightStatusBar } from "../../hooks/useLightStatusBar";
 import { colors, shadows } from "../../theme/barberTheme";
 
 const HERO_IMAGES = [
+  require("../../../assets/images/welcome/barber.jpg"),
   require("../../../assets/images/welcome/Salon-Fresh.jpg"),
   require("../../../assets/images/welcome/nails.jpg"),
   require("../../../assets/images/welcome/hero-nails.webp"),
-  require("../../../assets/images/welcome/barber.jpg"),
 ];
 const HERO_HEIGHT = 300;
 const AUTO_ADVANCE_MS = 3500;
@@ -73,11 +73,16 @@ export default function Welcome({ navigation }) {
       ]}
     >
       <View style={styles.content}>
-        <View style={styles.logoBadge}>
-          <Text style={styles.logoBadgeText}>SB</Text>
+        {/* Brand lockup stays small — the headline below carries the weight.
+            Matches the badge + wordmark row on Signup/Login. */}
+        <View style={styles.brandRow}>
+          <View style={styles.logoBadge}>
+            <Text style={styles.logoBadgeText}>SB</Text>
+          </View>
+          <Text style={styles.wordmark}>SkoonBook</Text>
         </View>
 
-        <Text style={styles.title}>SkoonBook</Text>
+        <Text style={styles.headline}>Book any chair,{"\n"}any style</Text>
         <Text style={styles.subtitle}>Hair, nails and beauty, near you.</Text>
 
         <HeroCarousel />
@@ -102,21 +107,21 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     paddingHorizontal: 24,
   },
-  content: { alignItems: "center" },
+  content: { alignItems: "flex-start" },
+  brandRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 24 },
   logoBadge: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 11,
     backgroundColor: colors.accent,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 20,
-    ...shadows.button,
   },
-  logoBadgeText: { fontSize: 20, fontWeight: "900", color: colors.accentText, letterSpacing: 0.5 },
-  title: { fontSize: 28, fontWeight: "800", color: colors.text, marginBottom: 8 },
-  subtitle: { fontSize: 15, color: colors.textMuted, textAlign: "center" },
-  heroWrap: { width: "100%", marginTop: 32 },
+  logoBadgeText: { fontSize: 14, fontWeight: "900", color: colors.accentText, letterSpacing: 0.3 },
+  wordmark: { fontSize: 16, fontWeight: "800", color: colors.text },
+  headline: { fontSize: 32, fontWeight: "800", color: colors.text, lineHeight: 39, marginBottom: 10 },
+  subtitle: { fontSize: 15, color: colors.textMuted, lineHeight: 21 },
+  heroWrap: { width: "100%", marginTop: 26 },
   dotsRow: { flexDirection: "row", justifyContent: "center", gap: 6, marginTop: 10 },
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.border },
   dotActive: { backgroundColor: colors.accent, width: 16 },
