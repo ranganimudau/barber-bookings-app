@@ -15,7 +15,7 @@ export const colors = {
   textSecondary: '#334155',
   textMuted: '#64748B',
 
-  accent: '#0F9C8D',
+  accent: '#148F83',
   accentDark: '#0C7A6E',
   accentSoft: '#E3F5F2', // pale teal tint — badges/pills only
   accentText: '#FFFFFF', // text/icon color on top of solid accent fills

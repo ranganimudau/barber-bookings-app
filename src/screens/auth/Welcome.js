@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Icon from "react-native-vector-icons/Ionicons";
 import StatusBarBackdrop from "../../components/common/StatusBarBackdrop";
 import { useLightStatusBar } from "../../hooks/useLightStatusBar";
 import { colors, shadows } from "../../theme/barberTheme";
@@ -11,7 +12,12 @@ const HERO_IMAGES = [
   require("../../../assets/images/welcome/nails.jpg"),
   require("../../../assets/images/welcome/hero-nails.webp"),
 ];
-const HERO_HEIGHT = 300;
+const HERO_HEIGHT = 250;
+
+// Deliberately factual — the app has no verification system and bookings
+// need the pro to accept, so "verified professionals" / "instant booking"
+// would both be false claims to put in front of a first-time user.
+const VALUE_POINTS = ["No phone calls", "Prices upfront", "Manage in-app"];
 const AUTO_ADVANCE_MS = 3500;
 
 // The first image repeated on the end. Advancing onto that clone looks
@@ -111,16 +117,29 @@ export default function Welcome({ navigation }) {
           <Text style={styles.wordmark}>SkoonBook</Text>
         </View>
 
-        <Text style={styles.headline}>Book any chair,{"\n"}any style</Text>
-        <Text style={styles.subtitle}>Hair, nails and beauty, near you.</Text>
+        <Text style={styles.headline}>Look Good.{"\n"}Book Easy.</Text>
+        <Text style={styles.subtitle}>
+          From fades to braids, nails to makeup — book it all in one place.
+        </Text>
 
         <HeroCarousel />
+
+        <View style={styles.valueRow}>
+          {VALUE_POINTS.map((point) => (
+            <View key={point} style={styles.valueItem}>
+              <Icon name="checkmark-circle" size={14} color={colors.accent} />
+              <Text style={styles.valueText}>{point}</Text>
+            </View>
+          ))}
+        </View>
       </View>
 
       <View style={styles.actions}>
         <TouchableOpacity style={styles.primaryBtn} onPress={() => navigation.navigate("Signup")} activeOpacity={0.9}>
-          <Text style={styles.primaryBtnText}>Create account</Text>
+          <Text style={styles.primaryBtnText}>Get Started</Text>
         </TouchableOpacity>
+
+        <Text style={styles.loginPrompt}>Already have an account?</Text>
 
         <TouchableOpacity style={styles.secondaryBtn} onPress={() => navigation.navigate("Login")} activeOpacity={0.9}>
           <Text style={styles.secondaryBtnText}>Log in</Text>
@@ -137,7 +156,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   content: { alignItems: "flex-start" },
-  brandRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 24 },
+  brandRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 32 },
   logoBadge: {
     width: 36,
     height: 36,
@@ -148,14 +167,25 @@ const styles = StyleSheet.create({
   },
   logoBadgeText: { fontSize: 14, fontWeight: "900", color: colors.accentText, letterSpacing: 0.3 },
   wordmark: { fontSize: 16, fontWeight: "800", color: colors.text },
-  headline: { fontSize: 32, fontWeight: "800", color: colors.text, lineHeight: 39, marginBottom: 10 },
-  subtitle: { fontSize: 15, color: colors.textMuted, lineHeight: 21 },
-  heroWrap: { width: "100%", marginTop: 26 },
-  dotsRow: { flexDirection: "row", justifyContent: "center", gap: 6, marginTop: 10 },
+  headline: { fontSize: 34, fontWeight: "800", color: colors.text, lineHeight: 41, marginBottom: 14 },
+  subtitle: { fontSize: 15, color: colors.textMuted, lineHeight: 22 },
+  heroWrap: { width: "100%", marginTop: 30 },
+  dotsRow: { flexDirection: "row", justifyContent: "center", gap: 6, marginTop: 12 },
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.border },
   dotActive: { backgroundColor: colors.accent, width: 16 },
 
-  actions: { width: "100%", marginTop: 32 },
+  valueRow: { flexDirection: "row", flexWrap: "wrap", gap: 14, marginTop: 20 },
+  valueItem: { flexDirection: "row", alignItems: "center", gap: 5 },
+  valueText: { fontSize: 12, color: colors.textSecondary, fontWeight: "600" },
+
+  actions: { width: "100%", marginTop: 28 },
+  loginPrompt: {
+    fontSize: 13,
+    color: colors.textMuted,
+    textAlign: "center",
+    marginBottom: 10,
+    fontWeight: "600",
+  },
   primaryBtn: {
     backgroundColor: colors.accent,
     borderRadius: 14,
