@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Icon from "react-native-vector-icons/Ionicons";
+import GoogleSignInButton from "../../components/common/GoogleSignInButton";
 import KeyboardDoneBar from "../../components/common/KeyboardDoneBar";
 import StatusBarBackdrop from "../../components/common/StatusBarBackdrop";
 import { useKeyboardInset } from "../../hooks/useKeyboardInset";
@@ -299,6 +300,11 @@ export default function Signup({ navigation }) {
           </TouchableOpacity>
 
           {statusMessage ? <Text style={styles.statusText}>{statusMessage}</Text> : null}
+
+          {/* Client-only: Google gives us no role, so the trigger defaults
+              these accounts to 'client'. Businesses pick their role here and
+              have a longer onboarding anyway, so they use the email form. */}
+          {role === "client" ? <GoogleSignInButton label="Sign up with Google" /> : null}
 
           <TouchableOpacity
             onPress={() => navigation.navigate("Login")}

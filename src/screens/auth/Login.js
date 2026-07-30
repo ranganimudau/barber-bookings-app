@@ -15,6 +15,7 @@ import {
 import * as Linking from "expo-linking";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Icon from "react-native-vector-icons/Ionicons";
+import GoogleSignInButton from "../../components/common/GoogleSignInButton";
 import KeyboardDoneBar from "../../components/common/KeyboardDoneBar";
 import StatusBarBackdrop from "../../components/common/StatusBarBackdrop";
 import { useKeyboardInset } from "../../hooks/useKeyboardInset";
@@ -267,6 +268,8 @@ export default function Login({ navigation }) {
           </TouchableOpacity>
 
           {statusMessage ? <Text style={styles.statusText}>{statusMessage}</Text> : null}
+
+          <GoogleSignInButton label="Continue with Google" />
 
           <TouchableOpacity
             onPress={() => navigation.navigate("Signup")}
