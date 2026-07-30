@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { Calendar } from "react-native-calendars";
 import Icon from "react-native-vector-icons/Ionicons";
+import { useGuestMode } from "../../context/GuestModeContext";
 import { supabase } from "../../supabase/supabaseClient";
 import {
     borderRadius,
@@ -29,6 +30,7 @@ import {
 
 export default function BarberProfile({ route, navigation }) {
   const { colors: themeColors, isDark } = useClientThemeMode();
+  const { isGuest, requireAccount } = useGuestMode();
   const BUFFER_MINUTES = 10;
   // Destructure editMode and appointmentId from params
   const { barberId, editMode, appointmentId } = route.params;
@@ -269,6 +271,10 @@ export default function BarberProfile({ route, navigation }) {
   };
 
   const handleBooking = async () => {
+    // Guests can browse everything here — services, prices, availability —
+    // but booking writes a row tied to a client id, so it needs an account.
+    if (requireAccount("book an appointment")) return;
+
     if (unavailableDateMap[selectedDate]?.disabled) {
       Alert.alert(
         "Unavailable",
@@ -962,16 +968,19 @@ export default function BarberProfile({ route, navigation }) {
             backgroundColor: themeColors.accent,
             borderColor: themeColors.border,
           },
-          !selectedTime && [
+          !isGuest && !selectedTime && [
             styles.bookBtnDisabled,
             { backgroundColor: themeColors.textMuted },
           ],
         ]}
         onPress={handleBooking}
+        // Guests stay tappable even without a slot picked — tapping is how
+        // they get the sign-up prompt, so greying it out would dead-end them.
         disabled={
           booking ||
-          !selectedTime ||
-          (subscriptionState && !isSubscriptionEligible(subscriptionState))
+          (!isGuest &&
+            (!selectedTime ||
+              (subscriptionState && !isSubscriptionEligible(subscriptionState))))
         }
         activeOpacity={0.85}
       >
@@ -980,7 +989,7 @@ export default function BarberProfile({ route, navigation }) {
         ) : (
           <>
             <Icon
-              name="checkmark-circle"
+              name={isGuest ? "person-add" : "checkmark-circle"}
               size={22}
               color={isDark ? "#0A0A0A" : "#fff"}
               style={{ marginRight: 8 }}
@@ -991,7 +1000,11 @@ export default function BarberProfile({ route, navigation }) {
                 { color: isDark ? "#0A0A0A" : "#fff" },
               ]}
             >
-              {editMode ? "Confirm reschedule" : "Confirm booking"}
+              {isGuest
+                ? "Sign up to book"
+                : editMode
+                ? "Confirm reschedule"
+                : "Confirm booking"}
             </Text>
           </>
         )}

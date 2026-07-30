@@ -3,6 +3,7 @@ import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensi
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Icon from "react-native-vector-icons/Ionicons";
 import StatusBarBackdrop from "../../components/common/StatusBarBackdrop";
+import { useGuestMode } from "../../context/GuestModeContext";
 import { useLightStatusBar } from "../../hooks/useLightStatusBar";
 import { colors, shadows } from "../../theme/barberTheme";
 
@@ -98,6 +99,7 @@ function HeroCarousel() {
 export default function Welcome({ navigation }) {
   useLightStatusBar(colors.background);
   const insets = useSafeAreaInsets();
+  const { enterGuestMode } = useGuestMode();
 
   return (
     <View
@@ -115,6 +117,16 @@ export default function Welcome({ navigation }) {
             <Text style={styles.logoBadgeText}>SB</Text>
           </View>
           <Text style={styles.wordmark}>SkoonBook</Text>
+
+          <TouchableOpacity
+            style={styles.skipBtn}
+            onPress={enterGuestMode}
+            activeOpacity={0.7}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          >
+            <Text style={styles.skipText}>Skip</Text>
+            <Icon name="arrow-forward" size={14} color={colors.textMuted} />
+          </TouchableOpacity>
         </View>
 
         <Text style={styles.headline}>Look Good.{"\n"}Book Easy.</Text>
@@ -156,7 +168,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   content: { alignItems: "flex-start" },
-  brandRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 32 },
+  brandRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 32, width: "100%" },
+  skipBtn: { marginLeft: "auto", flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 4 },
+  skipText: { fontSize: 14, color: colors.textMuted, fontWeight: "700" },
   logoBadge: {
     width: 36,
     height: 36,

@@ -4,8 +4,10 @@ import React from 'react';
 import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import { useGuestMode } from '../context/GuestModeContext';
 import BarberProfile from '../screens/client/BarberProfile';
 import ClientHome from '../screens/client/ClientHome';
+import GuestPrompt from '../screens/client/GuestPrompt';
 import MyBookings from '../screens/client/MyBookings';
 import Settings from '../screens/client/Settings';
 import { useClientThemeMode } from '../theme/ClientThemeMode';
@@ -53,6 +55,7 @@ const ANDROID_NAV_PADDING = 24;
 export default function ClientStack() {
   const insets = useSafeAreaInsets();
   const { colors: themeColors, isDark } = useClientThemeMode();
+  const { isGuest } = useGuestMode();
   const bottomPadding = Platform.OS === 'android'
     ? Math.max(insets.bottom, ANDROID_NAV_PADDING)
     : insets.bottom;
@@ -101,15 +104,35 @@ export default function ClientStack() {
         component={HomeStack}
         options={{ title: 'Find a pro' }}
       />
+      {/* Both of these read the signed-in user's own rows, so guests get a
+          sign-up prompt in their place rather than an empty or broken tab. */}
       <Tab.Screen
         name="My Bookings"
-        component={MyBookings}
+        component={isGuest ? GuestPrompt : MyBookings}
         options={{ title: 'My bookings' }}
+        initialParams={
+          isGuest
+            ? {
+                icon: 'calendar-outline',
+                title: 'Your bookings live here',
+                body: 'Create an account to book appointments and keep track of them in one place.',
+              }
+            : undefined
+        }
       />
       <Tab.Screen
         name="Settings"
-        component={Settings}
+        component={isGuest ? GuestPrompt : Settings}
         options={{ title: 'Settings' }}
+        initialParams={
+          isGuest
+            ? {
+                icon: 'person-circle-outline',
+                title: 'No account yet',
+                body: "You're browsing as a guest. Create an account to save your details and manage your bookings.",
+              }
+            : undefined
+        }
       />
     </Tab.Navigator>
   );

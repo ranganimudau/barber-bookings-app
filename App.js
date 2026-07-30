@@ -17,6 +17,7 @@ import ResetPassword, {
 } from "./src/screens/auth/ResetPassword";
 import ProfileSetup from "./src/screens/barber/ProfileSetup";
 import SubscriptionPaywall from "./src/screens/barber/SubscriptionPaywall";
+import { GuestModeProvider, useGuestMode } from "./src/context/GuestModeContext";
 import { ClientThemeProvider } from "./src/theme/ClientThemeMode";
 import { supabase } from "./src/supabase/supabaseClient";
 import { isExpoGoAndroid } from "./src/utils/isExpoGoAndroid";
@@ -334,31 +335,55 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <ClientThemeProvider>
-        <StatusBar style="light" backgroundColor="#0A0A0A" translucent={false} />
-        <NavigationContainer>
-          <Stack.Navigator screenOptions={{ headerShown: false }}>
-            {passwordRecovery ? (
-              <Stack.Screen name="ResetPassword" component={ResetPassword} />
-            ) : user && role ? (
-              role === "barber" ? (
-                <>
-                  {!isSetupComplete ? (
-                    <Stack.Screen name="ProfileSetup" component={ProfileSetup} />
-                  ) : (
-                    <Stack.Screen name="BarberStack" component={BarberStack} />
-                  )}
-                  <Stack.Screen name="SubscriptionPaywall" component={SubscriptionPaywall} />
-                  <Stack.Screen name="BarberDashboard" component={BarberStack} />
-                </>
-              ) : (
-                <Stack.Screen name="ClientStack" component={ClientStack} />
-              )
-            ) : (
-              <Stack.Screen name="AuthStack" component={AuthStack} />
-            )}
-          </Stack.Navigator>
-        </NavigationContainer>
+        <GuestModeProvider>
+          <StatusBar style="light" backgroundColor="#0A0A0A" translucent={false} />
+          <RootNavigator
+            passwordRecovery={passwordRecovery}
+            user={user}
+            role={role}
+            isSetupComplete={isSetupComplete}
+          />
+        </GuestModeProvider>
       </ClientThemeProvider>
     </SafeAreaProvider>
+  );
+}
+
+/** Split out so it can read guest state from the provider above it. */
+function RootNavigator({ passwordRecovery, user, role, isSetupComplete }) {
+  const { isGuest, exitGuestMode } = useGuestMode();
+
+  // A real session always wins — if a guest signs up or logs in, drop the
+  // guest flag so they land in the normal authenticated stack.
+  useEffect(() => {
+    if (user && isGuest) exitGuestMode();
+  }, [user, isGuest, exitGuestMode]);
+
+  return (
+    <NavigationContainer>
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        {passwordRecovery ? (
+          <Stack.Screen name="ResetPassword" component={ResetPassword} />
+        ) : user && role ? (
+          role === "barber" ? (
+            <>
+              {!isSetupComplete ? (
+                <Stack.Screen name="ProfileSetup" component={ProfileSetup} />
+              ) : (
+                <Stack.Screen name="BarberStack" component={BarberStack} />
+              )}
+              <Stack.Screen name="SubscriptionPaywall" component={SubscriptionPaywall} />
+              <Stack.Screen name="BarberDashboard" component={BarberStack} />
+            </>
+          ) : (
+            <Stack.Screen name="ClientStack" component={ClientStack} />
+          )
+        ) : isGuest ? (
+          <Stack.Screen name="ClientStack" component={ClientStack} />
+        ) : (
+          <Stack.Screen name="AuthStack" component={AuthStack} />
+        )}
+      </Stack.Navigator>
+    </NavigationContainer>
   );
 }

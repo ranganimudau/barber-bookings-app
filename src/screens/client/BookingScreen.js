@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useGuestMode } from "../../context/GuestModeContext";
 import { supabase } from "../../supabase/supabaseClient"; //
 
 // Available time slots (You can later make these dynamic based on barber availability)
@@ -23,11 +24,14 @@ const TIME_SLOTS = [
 
 export default function BookingScreen({ route, navigation }) {
   const { barberId, shopName } = route.params; // Passed from MapScreen
+  const { requireAccount } = useGuestMode();
   const [selectedDate] = useState("2026-02-10"); // Example date
   const [selectedTime, setSelectedTime] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const handleConfirmBooking = async () => {
+    if (requireAccount("book an appointment")) return;
+
     if (!selectedTime) {
       Alert.alert("Error", "Please select a time slot.");
       return;
