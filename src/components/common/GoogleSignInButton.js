@@ -6,6 +6,16 @@ import { colors, shadows } from "../../theme/barberTheme";
 import { signInWithGoogle } from "../../utils/signInWithGoogle";
 
 /**
+ * Paused: the OAuth code exchange was hanging unreliably on Android (the
+ * same class of Supabase-mobile bug already worked around elsewhere in this
+ * app for auth.getUser()/getSession()) and needs more investigation before
+ * it's shown to real users. The underlying flow — including a retry for
+ * that exact hang — is still implemented in signInWithGoogle.js; flip this
+ * back to false to resume without rebuilding anything.
+ */
+const GOOGLE_SIGNIN_PAUSED = true;
+
+/**
  * Renders nothing until the project reports Google as enabled, so this can
  * ship before the OAuth credentials exist without leaving a button that
  * fails when tapped.
@@ -19,14 +29,15 @@ export default function GoogleSignInButton({ label = "Continue with Google" }) {
   const { providers } = useAuthProviders();
   const [busy, setBusy] = useState(false);
 
-  if (!providers.google) return null;
+  if (GOOGLE_SIGNIN_PAUSED || !providers.google) return null;
 
   const handlePress = async () => {
     setBusy(true);
     try {
       const result = await signInWithGoogle();
       // Success needs no navigation — App.js's onAuthStateChange listener
-      // sees the new session and swaps the navigator over.
+      // (and the direct session-established notification) swap the
+      // navigator over on their own.
       if (!result.ok && !result.cancelled) {
         Alert.alert("Google sign-in", "Could not complete sign-in. Please try again.");
       }

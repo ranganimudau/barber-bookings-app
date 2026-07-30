@@ -2,8 +2,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
 import * as Linking from "expo-linking";
-import React, { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Platform, View } from "react-native";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Alert, AppState, Platform, View } from "react-native";
 import Constants from "expo-constants";
 import * as Device from "expo-device";
 import { StatusBar } from "expo-status-bar";
@@ -25,7 +25,11 @@ import {
   parseSupabaseAuthParams,
   shouldOpenPasswordRecovery,
 } from "./src/utils/parseSupabaseAuthUrl";
-import { completeOAuthFromUrl, isOAuthCallbackUrl } from "./src/utils/signInWithGoogle";
+import {
+  completeOAuthFromUrl,
+  isOAuthCallbackUrl,
+  setSessionEstablishedHandler,
+} from "./src/utils/signInWithGoogle";
 
 const Stack = createStackNavigator();
 
@@ -37,6 +41,67 @@ export default function App() {
   const [passwordRecovery, setPasswordRecovery] = useState(false);
   const passwordRecoveryRef = useRef(false);
   const notificationsModRef = useRef(null);
+  const userRef = useRef(null);
+  userRef.current = user;
+
+  /**
+   * Adopts whatever session is on disk into React state.
+   *
+   * OAuth completes outside the normal sign-in path: Android hands the
+   * barberapp:// callback to the app, the code is exchanged, and the
+   * session is persisted — but the onAuthStateChange event can be missed
+   * if it fires while the app is mid-foreground, leaving someone signed in
+   * on disk yet still looking at the login screen until they restart the
+   * app. Re-reading on foreground closes that gap for any auth path.
+   */
+  const adoptExistingSession = useCallback(async () => {
+    try {
+      const { data } = await supabase.auth.getSession();
+      const session = data?.session;
+      if (!session || userRef.current?.id === session.user.id) return;
+
+      setUser(session.user);
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", session.user.id)
+        .maybeSingle();
+
+      if (profile?.role) {
+        setRole(profile.role);
+        if (profile.role === "barber") {
+          const { data: barber } = await supabase
+            .from("barbers")
+            .select("is_profile_complete")
+            .eq("id", session.user.id)
+            .maybeSingle();
+          setIsSetupComplete(barber?.is_profile_complete || false);
+        }
+      }
+      setLoading(false);
+    } catch (e) {
+      console.warn("Session reconcile failed:", e?.message);
+    }
+  }, []);
+
+  useEffect(() => {
+    // Primary path: the OAuth helper calls this the moment the code
+    // exchange lands, so the UI updates without waiting on an event that
+    // may never arrive.
+    setSessionEstablishedHandler(adoptExistingSession);
+
+    // Backstop for the cold-start case, where the app was restarted by the
+    // deep link and the handler above was registered too late.
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") adoptExistingSession();
+    });
+
+    return () => {
+      setSessionEstablishedHandler(null);
+      sub.remove();
+    };
+  }, [adoptExistingSession]);
 
   useEffect(() => {
     // By default expo-updates only applies a newly-fetched OTA update on the
@@ -197,6 +262,9 @@ export default function App() {
       if (!shouldOpenPasswordRecovery(url, params) && isOAuthCallbackUrl(params)) {
         try {
           await completeOAuthFromUrl(url);
+          // Adopt it straight away rather than waiting on onAuthStateChange,
+          // which can be missed during the deep-link foregrounding.
+          await adoptExistingSession();
         } catch (e) {
           console.warn("OAuth callback failed:", e?.message);
           Alert.alert("Sign-in failed", e?.message || "Could not finish signing in. Please try again.");
