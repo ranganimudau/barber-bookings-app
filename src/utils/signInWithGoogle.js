@@ -39,32 +39,62 @@ export async function signInWithGoogle() {
     return { ok: false, cancelled: true };
   }
 
-  const returned = result.url;
+  return completeOAuthFromUrl(result.url);
+}
+
+// A given auth code is single-use — exchanging it twice fails. Both the
+// WebBrowser result and the deep-link listener can see the same callback
+// (Android often opens the app via the barberapp:// scheme before
+// openAuthSessionAsync resolves), so remember what's been handled and let
+// whichever arrives first win.
+const handledCallbacks = new Set();
+
+/**
+ * Turns a barberapp://auth/callback URL into a session. Safe to call from
+ * more than one place with the same URL.
+ */
+export async function completeOAuthFromUrl(url) {
+  if (!url) return { ok: false };
 
   // Provider or Supabase rejected it — surface the reason instead of a
   // generic failure.
-  const errorDescription = readParam(returned, "error_description") || readParam(returned, "error");
+  const errorDescription = readParam(url, "error_description") || readParam(url, "error");
   if (errorDescription) throw new Error(decodeURIComponent(errorDescription.replace(/\+/g, " ")));
 
-  const accessToken = readParam(returned, "access_token");
-  const refreshToken = readParam(returned, "refresh_token");
-  if (accessToken && refreshToken) {
-    const { error: sessionError } = await supabase.auth.setSession({
-      access_token: accessToken,
-      refresh_token: refreshToken,
-    });
-    if (sessionError) throw new Error(sessionError.message);
-    return { ok: true };
-  }
+  const accessToken = readParam(url, "access_token");
+  const refreshToken = readParam(url, "refresh_token");
+  const code = readParam(url, "code");
 
-  const code = readParam(returned, "code");
-  if (code) {
+  const key = code || accessToken;
+  if (!key) return { ok: false };
+  if (handledCallbacks.has(key)) return { ok: true, alreadyHandled: true };
+  handledCallbacks.add(key);
+
+  try {
+    if (accessToken && refreshToken) {
+      const { error: sessionError } = await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      });
+      if (sessionError) throw new Error(sessionError.message);
+      return { ok: true };
+    }
+
     const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
     if (exchangeError) throw new Error(exchangeError.message);
     return { ok: true };
+  } catch (e) {
+    // Let a genuine failure be retried rather than silently swallowed.
+    handledCallbacks.delete(key);
+    throw e;
   }
+}
 
-  throw new Error("Google sign-in did not return a session. Please try again.");
+/** True for a Supabase auth redirect that isn't password recovery. */
+export function isOAuthCallbackUrl(params) {
+  if (!params) return false;
+  if (params.type === "recovery") return false;
+  return Boolean(params.code || (params.access_token && params.refresh_token));
 }
 
 /** Pulls a param whether it arrived in the query string or the fragment. */

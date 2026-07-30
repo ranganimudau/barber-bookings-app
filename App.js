@@ -3,7 +3,7 @@ import { NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
 import * as Linking from "expo-linking";
 import React, { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Platform, View } from "react-native";
+import { ActivityIndicator, Alert, Platform, View } from "react-native";
 import Constants from "expo-constants";
 import * as Device from "expo-device";
 import { StatusBar } from "expo-status-bar";
@@ -25,6 +25,7 @@ import {
   parseSupabaseAuthParams,
   shouldOpenPasswordRecovery,
 } from "./src/utils/parseSupabaseAuthUrl";
+import { completeOAuthFromUrl, isOAuthCallbackUrl } from "./src/utils/signInWithGoogle";
 
 const Stack = createStackNavigator();
 
@@ -154,9 +155,20 @@ export default function App() {
       }
     };
 
-    const fetchUserData = async (userId) => {
+    const fetchUserData = async (userId, attempt = 0) => {
       try {
         const { data: profile } = await supabase.from("profiles").select("role").eq("id", userId).single();
+
+        // Signing in leaves `user` set but `role` null if this read comes up
+        // empty, and the navigator keys off both — so the person sits on the
+        // auth screen already authenticated. The handle_new_user trigger
+        // makes that near-impossible now, but retry once rather than risk
+        // stranding someone on a read blip.
+        if (!profile && attempt < 1) {
+          await new Promise((resolve) => setTimeout(resolve, 600));
+          return fetchUserData(userId, attempt + 1);
+        }
+
         if (profile) {
           setRole(profile.role);
           if (profile.role === "barber") {
@@ -176,6 +188,22 @@ export default function App() {
     const handleAuthDeepLink = async (url) => {
       if (!url) return;
       const params = parseSupabaseAuthParams(url);
+
+      // Social sign-in callback (barberapp://auth/callback?code=…). Android
+      // frequently opens the app through the scheme before the auth browser
+      // resolves, so this listener — not the WebBrowser result — is what
+      // actually completes the sign-in. Without it the code was never
+      // exchanged and the user was dumped back on the signup form.
+      if (!shouldOpenPasswordRecovery(url, params) && isOAuthCallbackUrl(params)) {
+        try {
+          await completeOAuthFromUrl(url);
+        } catch (e) {
+          console.warn("OAuth callback failed:", e?.message);
+          Alert.alert("Sign-in failed", e?.message || "Could not finish signing in. Please try again.");
+        }
+        return;
+      }
+
       if (!shouldOpenPasswordRecovery(url, params)) return;
 
       try {
