@@ -16,6 +16,7 @@ import MapView, { Marker } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from "react-native-vector-icons/Ionicons";
 import KeyboardDoneBar from "../../components/common/KeyboardDoneBar";
+import StatusBarBackdrop from "../../components/common/StatusBarBackdrop";
 import { useLightStatusBar } from "../../hooks/useLightStatusBar";
 import { supabase } from "../../supabase/supabaseClient";
 import { colors, shadows } from "../../theme/barberTheme";
@@ -504,6 +505,7 @@ export default function ProfileSetup({ navigation }) {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
     >
+    <StatusBarBackdrop />
     <ScrollView
       ref={formScrollRef}
       keyboardShouldPersistTaps="handled"

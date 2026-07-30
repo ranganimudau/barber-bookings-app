@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import StatusBarBackdrop from "../../components/common/StatusBarBackdrop";
 import { useLightStatusBar } from "../../hooks/useLightStatusBar";
 import { colors, shadows } from "../../theme/barberTheme";
 
@@ -13,29 +14,56 @@ const HERO_IMAGES = [
 const HERO_HEIGHT = 300;
 const AUTO_ADVANCE_MS = 3500;
 
+// The first image repeated on the end. Advancing onto that clone looks
+// identical to wrapping around, so once the animation lands we can jump
+// back to the real first slide with the animation off — the loop reads as
+// continuous instead of visibly rewinding back through every slide.
+const LOOP_SLIDES = [...HERO_IMAGES, HERO_IMAGES[0]];
+const SNAP_BACK_MS = 450; // must outlast the scroll animation
+
 function HeroCarousel() {
   const { width: windowWidth } = useWindowDimensions();
   const imageWidth = windowWidth - 24 * 2; // matches screen's paddingHorizontal
   const scrollRef = useRef(null);
-  const [activeIndex, setActiveIndex] = useState(0);
+  const slideRef = useRef(0); // real position, including the trailing clone
+  const snapTimer = useRef(null);
+  const [activeDot, setActiveDot] = useState(0);
+
+  const goTo = useCallback(
+    (slide, animated) => {
+      slideRef.current = slide;
+      setActiveDot(slide % HERO_IMAGES.length);
+      scrollRef.current?.scrollTo({ x: slide * imageWidth, animated });
+    },
+    [imageWidth]
+  );
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setActiveIndex((prev) => {
-        const next = (prev + 1) % HERO_IMAGES.length;
-        scrollRef.current?.scrollTo({ x: next * imageWidth, animated: true });
-        return next;
-      });
+      const next = slideRef.current + 1;
+      goTo(next, true);
+      if (next === HERO_IMAGES.length) {
+        snapTimer.current = setTimeout(() => goTo(0, false), SNAP_BACK_MS);
+      }
     }, AUTO_ADVANCE_MS);
-    return () => clearInterval(timer);
-  }, [imageWidth]);
+    return () => {
+      clearInterval(timer);
+      if (snapTimer.current) clearTimeout(snapTimer.current);
+    };
+  }, [goTo]);
 
   const handleMomentumScrollEnd = useCallback(
     (e) => {
       const idx = Math.round(e.nativeEvent.contentOffset.x / imageWidth);
-      setActiveIndex(Math.min(Math.max(idx, 0), HERO_IMAGES.length - 1));
+      // Swiped onto the clone — land on the real first slide instead.
+      if (idx >= HERO_IMAGES.length) {
+        goTo(0, false);
+        return;
+      }
+      slideRef.current = idx;
+      setActiveDot(idx);
     },
-    [imageWidth]
+    [imageWidth, goTo]
   );
 
   return (
@@ -48,13 +76,13 @@ function HeroCarousel() {
         onMomentumScrollEnd={handleMomentumScrollEnd}
         style={{ borderRadius: 18 }}
       >
-        {HERO_IMAGES.map((src, idx) => (
+        {LOOP_SLIDES.map((src, idx) => (
           <Image key={idx} source={src} style={{ width: imageWidth, height: HERO_HEIGHT }} resizeMode="cover" />
         ))}
       </ScrollView>
       <View style={styles.dotsRow}>
         {HERO_IMAGES.map((_, idx) => (
-          <View key={idx} style={[styles.dot, idx === activeIndex && styles.dotActive]} />
+          <View key={idx} style={[styles.dot, idx === activeDot && styles.dotActive]} />
         ))}
       </View>
     </View>
@@ -72,6 +100,7 @@ export default function Welcome({ navigation }) {
         { paddingTop: Math.max(insets.top, 24) + 24, paddingBottom: Math.max(insets.bottom, 20) + 14 },
       ]}
     >
+      <StatusBarBackdrop />
       <View style={styles.content}>
         {/* Brand lockup stays small — the headline below carries the weight.
             Matches the badge + wordmark row on Signup/Login. */}

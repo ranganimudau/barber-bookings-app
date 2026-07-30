@@ -4,6 +4,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLightStatusBar } from '../../hooks/useLightStatusBar';
 import { supabase } from "../../supabase/supabaseClient";
+import StatusBarBackdrop from "../../components/common/StatusBarBackdrop";
 import { colors, shadows } from '../../theme/barberTheme';
 import { ensureBarberSubscriptionState, isSubscriptionEligible } from '../../utils/subscriptionState';
 
@@ -236,6 +237,7 @@ export default function BarberEarnings({ navigation }) {
 
   return (
     <View style={styles.screen}>
+      <StatusBarBackdrop />
       <View style={[styles.header, { paddingTop: Math.max(insets.top, 24) + 8 }]}>
         <Text style={styles.screenTitle}>Earnings</Text>
       </View>

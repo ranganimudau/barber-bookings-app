@@ -14,6 +14,7 @@ import { useLightStatusBar } from "../../hooks/useLightStatusBar";
 import { supabase } from "../../supabase/supabaseClient";
 import { fetchServiceImages } from "../../utils/serviceImageGallery";
 import { resolveStorageImageUrl } from "../../utils/storageImageUrl";
+import StatusBarBackdrop from "../../components/common/StatusBarBackdrop";
 import { colors, shadows } from "../../theme/barberTheme";
 
 export default function Services() {
@@ -364,6 +365,7 @@ export default function Services() {
 
   return (
     <View style={styles.container}>
+      <StatusBarBackdrop />
       <Text style={styles.header}>Services & Gallery</Text>
       <FlatList
         ref={listRef}

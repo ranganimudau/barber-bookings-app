@@ -16,6 +16,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import Svg, { Circle, Defs, LinearGradient, Path, Stop } from 'react-native-svg';
 import { useLightStatusBar } from '../../hooks/useLightStatusBar';
 import { supabase } from '../../supabase/supabaseClient';
+import StatusBarBackdrop from "../../components/common/StatusBarBackdrop";
 import { colors, shadows } from '../../theme/barberTheme';
 import {
     ensureBarberSubscriptionState,
@@ -240,6 +241,7 @@ export default function BarberDashboard({ navigation }) {
 
   return (
     <View style={styles.screen}>
+      <StatusBarBackdrop />
       <View style={[styles.header, { paddingTop: Math.max(insets.top, 24) + 8 }]}>
         <View style={styles.headerTopRow}>
           {barberAvatar ? (

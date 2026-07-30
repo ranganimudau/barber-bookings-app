@@ -6,15 +6,19 @@ import { Platform } from 'react-native';
 const DARK_SCREEN_BACKGROUND = '#0A0A0A';
 
 /**
- * For barber-side screens using the new light (white) theme while other
- * tabs are still dark-themed. Flips the system status bar to dark
- * icons/background while this screen is focused, and restores the app's
- * default light-icon/dark-background style on blur — tab screens stay
- * mounted, so this can't rely on unmount.
+ * Slightly darker than the white page behind it (barberTheme surfaceMuted)
+ * so the system bar reads as the OS's strip rather than blending into the
+ * app's content. App.js renders the status bar non-translucent, so on
+ * Android this colour *is* the visible strip on every light screen —
+ * including pushed screens with a native header, which an in-screen
+ * overlay could never reach. iOS has no equivalent API; there the
+ * StatusBarBackdrop component covers the safe-area inset instead.
  */
-const applyLight = (lightBackground) => {
+const LIGHT_STATUS_BAR_TINT = '#F1F4F9';
+
+const applyLight = () => {
   setStatusBarStyle('dark');
-  if (Platform.OS === 'android') setStatusBarBackgroundColor(lightBackground, false);
+  if (Platform.OS === 'android') setStatusBarBackgroundColor(LIGHT_STATUS_BAR_TINT, false);
 };
 
 const applyDark = () => {
@@ -32,9 +36,9 @@ export function useLightStatusBar(lightBackground) {
       // something else forces a redraw (e.g. leaving and refocusing this
       // same screen). Applying on both the current frame and after the next
       // frame covers the case where the first call lands mid-transition.
-      applyLight(lightBackground);
-      const raf = requestAnimationFrame(() => applyLight(lightBackground));
-      const timeout = setTimeout(() => applyLight(lightBackground), 150);
+      applyLight();
+      const raf = requestAnimationFrame(() => applyLight());
+      const timeout = setTimeout(() => applyLight(), 150);
       return () => {
         cancelAnimationFrame(raf);
         clearTimeout(timeout);
