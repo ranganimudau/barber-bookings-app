@@ -18,6 +18,7 @@ import Ionicons from "react-native-vector-icons/Ionicons";
 import KeyboardDoneBar from "../../components/common/KeyboardDoneBar";
 import { useKeyboardInset } from "../../hooks/useKeyboardInset";
 import { useLightStatusBar } from "../../hooks/useLightStatusBar";
+import { useScrollToFocusedInput } from "../../hooks/useScrollToFocusedInput";
 import { supabase } from "../../supabase/supabaseClient";
 import { borderRadius, colors, shadows, typography } from "../../theme/barberTheme";
 
@@ -28,6 +29,7 @@ import { borderRadius, colors, shadows, typography } from "../../theme/barberThe
 export default function EditProfile({ navigation }) {
     useLightStatusBar(colors.background);
     const keyboardInset = useKeyboardInset();
+    const { scrollRef, handleFocus } = useScrollToFocusedInput();
     const [loading, setLoading] = useState(true);
     const [updating, setUpdating] = useState(false);
     const [email, setEmail] = useState("");
@@ -147,6 +149,7 @@ export default function EditProfile({ navigation }) {
     return (
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <ScrollView
+          ref={scrollRef}
             style={styles.container}
             contentContainerStyle={[styles.scrollContent, { paddingBottom: 40 + keyboardInset + 20 }]}
             showsVerticalScrollIndicator={false}
@@ -193,6 +196,7 @@ export default function EditProfile({ navigation }) {
                     placeholderTextColor={colors.textMuted}
                     returnKeyType="done"
                     onSubmitEditing={Keyboard.dismiss}
+                    onFocus={handleFocus}
                 />
 
                 <Text style={styles.label}>Phone number</Text>
@@ -205,6 +209,7 @@ export default function EditProfile({ navigation }) {
                     placeholderTextColor={colors.textMuted}
                     returnKeyType="done"
                     onSubmitEditing={Keyboard.dismiss}
+                    onFocus={handleFocus}
                 />
             </View>
 

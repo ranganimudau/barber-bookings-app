@@ -20,6 +20,7 @@ import KeyboardDoneBar from "../../components/common/KeyboardDoneBar";
 import StatusBarBackdrop from "../../components/common/StatusBarBackdrop";
 import { useKeyboardInset } from "../../hooks/useKeyboardInset";
 import { useLightStatusBar } from "../../hooks/useLightStatusBar";
+import { useScrollToFocusedInput } from "../../hooks/useScrollToFocusedInput";
 import { supabase } from "../../supabase/supabaseClient";
 import { colors, shadows } from "../../theme/barberTheme";
 
@@ -27,6 +28,7 @@ export default function Login({ navigation }) {
   useLightStatusBar(colors.background);
   const insets = useSafeAreaInsets();
   const keyboardInset = useKeyboardInset();
+  const { scrollRef, handleFocus } = useScrollToFocusedInput();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -166,6 +168,7 @@ export default function Login({ navigation }) {
     >
       <StatusBarBackdrop />
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={[
           styles.content,
           { paddingTop: Math.max(insets.top, 24) + 20, paddingBottom: 34 + keyboardInset + 20 },
@@ -203,6 +206,7 @@ export default function Login({ navigation }) {
               keyboardType="email-address"
               returnKeyType="done"
               onSubmitEditing={Keyboard.dismiss}
+              onFocus={handleFocus}
             />
           </View>
 
@@ -218,6 +222,7 @@ export default function Login({ navigation }) {
                 secureTextEntry={!showPassword}
                 returnKeyType="done"
                 onSubmitEditing={Keyboard.dismiss}
+                onFocus={handleFocus}
               />
               <TouchableOpacity
                 onPress={() => setShowPassword(!showPassword)}

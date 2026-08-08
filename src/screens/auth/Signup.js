@@ -19,6 +19,7 @@ import KeyboardDoneBar from "../../components/common/KeyboardDoneBar";
 import StatusBarBackdrop from "../../components/common/StatusBarBackdrop";
 import { useKeyboardInset } from "../../hooks/useKeyboardInset";
 import { useLightStatusBar } from "../../hooks/useLightStatusBar";
+import { useScrollToFocusedInput } from "../../hooks/useScrollToFocusedInput";
 import { supabase } from "../../supabase/supabaseClient";
 import { colors, shadows } from "../../theme/barberTheme";
 
@@ -36,6 +37,7 @@ export default function Signup({ navigation }) {
   useLightStatusBar(colors.background);
   const insets = useSafeAreaInsets();
   const keyboardInset = useKeyboardInset();
+  const { scrollRef, handleFocus } = useScrollToFocusedInput();
   const [firstName, setFirstName] = useState("");
   const [surname, setSurname] = useState("");
   const [phone, setPhone] = useState("");
@@ -136,6 +138,7 @@ export default function Signup({ navigation }) {
     >
       <StatusBarBackdrop />
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={[
           styles.content,
           { paddingTop: Math.max(insets.top, 24) + 20, paddingBottom: 34 + keyboardInset + 20 },
@@ -206,6 +209,7 @@ export default function Signup({ navigation }) {
                 autoCapitalize="words"
                 returnKeyType="done"
                 onSubmitEditing={Keyboard.dismiss}
+                onFocus={handleFocus}
               />
             </View>
             <View style={styles.inputWrap}>
@@ -219,6 +223,7 @@ export default function Signup({ navigation }) {
                 autoCapitalize="words"
                 returnKeyType="done"
                 onSubmitEditing={Keyboard.dismiss}
+                onFocus={handleFocus}
               />
             </View>
           </View>
@@ -234,6 +239,7 @@ export default function Signup({ navigation }) {
               keyboardType="phone-pad"
               returnKeyType="done"
               onSubmitEditing={Keyboard.dismiss}
+              onFocus={handleFocus}
             />
           </View>
 
@@ -249,6 +255,7 @@ export default function Signup({ navigation }) {
               keyboardType="email-address"
               returnKeyType="done"
               onSubmitEditing={Keyboard.dismiss}
+              onFocus={handleFocus}
             />
           </View>
 
@@ -264,6 +271,7 @@ export default function Signup({ navigation }) {
                 secureTextEntry={!showPassword}
                 returnKeyType="done"
                 onSubmitEditing={Keyboard.dismiss}
+                onFocus={handleFocus}
               />
               <TouchableOpacity
                 onPress={() => setShowPassword(!showPassword)}
@@ -295,6 +303,7 @@ export default function Signup({ navigation }) {
                 autoCapitalize="none"
                 returnKeyType="done"
                 onSubmitEditing={Keyboard.dismiss}
+                onFocus={handleFocus}
               />
               <TouchableOpacity
                 onPress={() => setShowConfirmPassword(!showConfirmPassword)}

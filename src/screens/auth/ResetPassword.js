@@ -19,6 +19,7 @@ import KeyboardDoneBar from "../../components/common/KeyboardDoneBar";
 import StatusBarBackdrop from "../../components/common/StatusBarBackdrop";
 import { useKeyboardInset } from "../../hooks/useKeyboardInset";
 import { useLightStatusBar } from "../../hooks/useLightStatusBar";
+import { useScrollToFocusedInput } from "../../hooks/useScrollToFocusedInput";
 import { supabase } from "../../supabase/supabaseClient";
 import { colors, shadows } from "../../theme/barberTheme";
 
@@ -28,6 +29,7 @@ export default function ResetPassword() {
   useLightStatusBar(colors.background);
   const insets = useSafeAreaInsets();
   const keyboardInset = useKeyboardInset();
+  const { scrollRef, handleFocus } = useScrollToFocusedInput();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -184,6 +186,7 @@ export default function ResetPassword() {
     >
       <StatusBarBackdrop />
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={[
           styles.content,
           { paddingTop: Math.max(insets.top, 24) + 20, paddingBottom: 34 + keyboardInset + 20 },
@@ -221,6 +224,7 @@ export default function ResetPassword() {
                 autoCapitalize="none"
                 returnKeyType="done"
                 onSubmitEditing={Keyboard.dismiss}
+                onFocus={handleFocus}
               />
               <TouchableOpacity
                 onPress={() => setShowPassword(!showPassword)}
@@ -249,6 +253,7 @@ export default function ResetPassword() {
                 autoCapitalize="none"
                 returnKeyType="done"
                 onSubmitEditing={Keyboard.dismiss}
+                onFocus={handleFocus}
               />
               <TouchableOpacity
                 onPress={() => setShowConfirm(!showConfirm)}
