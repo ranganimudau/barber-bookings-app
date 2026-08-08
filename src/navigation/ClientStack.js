@@ -7,34 +7,53 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useGuestMode } from '../context/GuestModeContext';
 import BarberProfile from '../screens/client/BarberProfile';
 import ClientHome from '../screens/client/ClientHome';
+import AboutLegal from '../screens/common/AboutLegal';
+import SupportInfo from '../screens/common/SupportInfo';
+import EditProfile from '../screens/client/EditProfile';
 import GuestPrompt from '../screens/client/GuestPrompt';
 import MyBookings from '../screens/client/MyBookings';
 import Settings from '../screens/client/Settings';
-import { useClientThemeMode } from '../theme/ClientThemeMode';
+import { colors } from '../theme/barberTheme';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
+const stackHeaderOptions = {
+  headerStyle: {
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    shadowColor: 'transparent',
+    elevation: 0,
+  },
+  headerTintColor: colors.text,
+  headerTitleStyle: { fontWeight: '800', fontSize: 17, color: colors.text },
+  headerBackTitleVisible: false,
+};
+
+/** Settings needs a stack of its own so it can push the legal/help pages. */
+function SettingsStack() {
+  return (
+    <Stack.Navigator screenOptions={stackHeaderOptions}>
+      <Stack.Screen name="SettingsHome" component={Settings} options={{ title: 'Settings' }} />
+      <Stack.Screen name="EditProfile" component={EditProfile} options={{ title: 'Edit profile' }} />
+      <Stack.Screen name="AboutLegal" component={AboutLegal} options={{ title: 'About & legal' }} />
+      <Stack.Screen
+        name="SupportInfo"
+        component={SupportInfo}
+        options={({ route }) => ({ title: route.params?.title || 'Information' })}
+      />
+    </Stack.Navigator>
+  );
+}
+
 /**
- * HomeStack handles navigation between the main map/list 
+ * HomeStack handles navigation between the main map/list
  * and the specific barber profile booking page.
  */
 function HomeStack() {
   return (
-    <Stack.Navigator
-      screenOptions={{
-        headerStyle: {
-          backgroundColor: '#0A0A0A',
-          borderBottomWidth: 1,
-          borderBottomColor: 'rgba(197,160,112,0.20)',
-          shadowColor: 'transparent',
-          elevation: 0,
-        },
-        headerTintColor: '#F5F5F0',
-        headerTitleStyle: { fontWeight: '800', fontSize: 17, color: '#F5F5F0' },
-        headerBackTitleVisible: false,
-      }}
-    >
+    <Stack.Navigator screenOptions={stackHeaderOptions}>
       <Stack.Screen 
         name="Explore" 
         component={ClientHome} 
@@ -54,7 +73,6 @@ const ANDROID_NAV_PADDING = 24;
 
 export default function ClientStack() {
   const insets = useSafeAreaInsets();
-  const { colors: themeColors, isDark } = useClientThemeMode();
   const { isGuest } = useGuestMode();
   const bottomPadding = Platform.OS === 'android'
     ? Math.max(insets.bottom, ANDROID_NAV_PADDING)
@@ -74,11 +92,11 @@ export default function ClientStack() {
           }
           return <Ionicons name={iconName} size={size} color={color} />;
         },
-        tabBarActiveTintColor: themeColors.accent,
-        tabBarInactiveTintColor: isDark ? '#8A8D96' : '#7D6F60',
+        tabBarActiveTintColor: colors.accent,
+        tabBarInactiveTintColor: colors.textMuted,
         tabBarStyle: {
-          backgroundColor: themeColors.surfaceAlt,
-          borderTopColor: themeColors.border,
+          backgroundColor: colors.surface,
+          borderTopColor: colors.border,
           borderTopWidth: 1,
           paddingTop: 8,
           height: TAB_BAR_BASE_HEIGHT + bottomPadding,
@@ -88,21 +106,25 @@ export default function ClientStack() {
         },
         tabBarLabelStyle: { fontSize: 12, fontWeight: '700', marginTop: 1 },
         headerStyle: {
-          backgroundColor: themeColors.surfaceAlt,
-          borderBottomColor: themeColors.border,
+          backgroundColor: colors.surface,
+          borderBottomColor: colors.border,
           borderBottomWidth: 1,
           shadowColor: 'transparent',
           elevation: 0,
         },
-        headerTintColor: themeColors.text,
-        headerTitleStyle: { fontWeight: '800', fontSize: 17, color: themeColors.text },
+        headerTintColor: colors.text,
+        headerTitleStyle: { fontWeight: '800', fontSize: 17, color: colors.text },
         headerShown: true,
       })}
     >
+      {/* Header off: the map fills the screen and draws its own floating
+          search bar over it, so a solid nav header would both duplicate the
+          title and eat the map. Pushed screens (BarberProfile) still get
+          their header from HomeStack. */}
       <Tab.Screen
         name="Find"
         component={HomeStack}
-        options={{ title: 'Find a pro' }}
+        options={{ title: 'Find a pro', headerShown: false }}
       />
       {/* Both of these read the signed-in user's own rows, so guests get a
           sign-up prompt in their place rather than an empty or broken tab. */}
@@ -122,8 +144,10 @@ export default function ClientStack() {
       />
       <Tab.Screen
         name="Settings"
-        component={isGuest ? GuestPrompt : Settings}
-        options={{ title: 'Settings' }}
+        component={isGuest ? GuestPrompt : SettingsStack}
+        // SettingsStack brings its own header; the guest prompt still needs
+        // the tab's one.
+        options={{ title: 'Settings', headerShown: isGuest }}
         initialParams={
           isGuest
             ? {

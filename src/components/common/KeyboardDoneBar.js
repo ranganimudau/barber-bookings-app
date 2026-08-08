@@ -1,7 +1,7 @@
 import React from "react";
 import { Keyboard, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import Icon from "react-native-vector-icons/Ionicons";
-import { colors } from "../../theme/clientTheme";
+import { colors, shadows } from "../../theme/barberTheme";
 
 export default function KeyboardDoneBar({ inset }) {
   if (!inset) return null;
@@ -27,12 +27,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: "#0A0A0A",
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: "rgba(197,160,112,0.45)",
+    borderColor: colors.borderStrong,
     borderRadius: 999,
     paddingVertical: 8,
     paddingHorizontal: 12,
+    ...shadows.card,
   },
   text: {
     color: colors.accent,
@@ -40,4 +41,3 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
 });
-

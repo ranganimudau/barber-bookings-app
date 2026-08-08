@@ -2,7 +2,8 @@ import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import Icon from "react-native-vector-icons/Ionicons";
 import { useGuestMode } from "../../context/GuestModeContext";
-import { useClientThemeMode } from "../../theme/ClientThemeMode";
+import { useLightStatusBar } from "../../hooks/useLightStatusBar";
+import { colors } from "../../theme/barberTheme";
 
 /**
  * Stands in for the account-only client tabs while browsing as a guest.
@@ -11,21 +12,21 @@ import { useClientThemeMode } from "../../theme/ClientThemeMode";
  * empty and offer the way out.
  */
 export default function GuestPrompt({ route, navigation }) {
-  const { colors: themeColors } = useClientThemeMode();
+  useLightStatusBar(colors.background);
   const { exitGuestMode } = useGuestMode();
   const { icon, title, body } = route.params || {};
 
   return (
-    <View style={[styles.screen, { backgroundColor: themeColors.background }]}>
-      <View style={[styles.iconWrap, { backgroundColor: themeColors.surfaceAlt }]}>
-        <Icon name={icon || "person-circle-outline"} size={34} color={themeColors.accent} />
+    <View style={styles.screen}>
+      <View style={styles.iconWrap}>
+        <Icon name={icon || "person-circle-outline"} size={34} color={colors.accent} />
       </View>
 
-      <Text style={[styles.title, { color: themeColors.text }]}>{title || "Account needed"}</Text>
-      <Text style={[styles.body, { color: themeColors.textMuted }]}>{body}</Text>
+      <Text style={styles.title}>{title || "Account needed"}</Text>
+      <Text style={styles.body}>{body}</Text>
 
       <TouchableOpacity
-        style={[styles.primaryBtn, { backgroundColor: themeColors.accent }]}
+        style={styles.primaryBtn}
         onPress={exitGuestMode}
         activeOpacity={0.9}
       >
@@ -37,32 +38,34 @@ export default function GuestPrompt({ route, navigation }) {
         onPress={() => navigation.navigate("Find")}
         activeOpacity={0.85}
       >
-        <Text style={[styles.ghostBtnText, { color: themeColors.accent }]}>Keep browsing</Text>
+        <Text style={styles.ghostBtnText}>Keep browsing</Text>
       </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32 },
+  screen: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32, backgroundColor: colors.background },
   iconWrap: {
     width: 72,
     height: 72,
     borderRadius: 24,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: colors.accentSoft,
     marginBottom: 20,
   },
-  title: { fontSize: 20, fontWeight: "800", marginBottom: 10, textAlign: "center" },
-  body: { fontSize: 14, lineHeight: 21, textAlign: "center", marginBottom: 26 },
+  title: { fontSize: 20, fontWeight: "800", marginBottom: 10, textAlign: "center", color: colors.text },
+  body: { fontSize: 14, lineHeight: 21, textAlign: "center", marginBottom: 26, color: colors.textMuted },
   primaryBtn: {
     alignSelf: "stretch",
     borderRadius: 14,
     paddingVertical: 15,
     alignItems: "center",
     marginBottom: 10,
+    backgroundColor: colors.accent,
   },
-  primaryBtnText: { color: "#fff", fontWeight: "800", fontSize: 15 },
+  primaryBtnText: { color: colors.accentText, fontWeight: "800", fontSize: 15 },
   ghostBtn: { paddingVertical: 10 },
-  ghostBtnText: { fontWeight: "700", fontSize: 14 },
+  ghostBtnText: { fontWeight: "700", fontSize: 14, color: colors.accent },
 });

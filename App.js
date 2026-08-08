@@ -18,7 +18,6 @@ import ResetPassword, {
 import ProfileSetup from "./src/screens/barber/ProfileSetup";
 import SubscriptionPaywall from "./src/screens/barber/SubscriptionPaywall";
 import { GuestModeProvider, useGuestMode } from "./src/context/GuestModeContext";
-import { ClientThemeProvider } from "./src/theme/ClientThemeMode";
 import { supabase } from "./src/supabase/supabaseClient";
 import { isExpoGoAndroid } from "./src/utils/isExpoGoAndroid";
 import {
@@ -430,17 +429,15 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <ClientThemeProvider>
-        <GuestModeProvider>
-          <StatusBar style="light" backgroundColor="#0A0A0A" translucent={false} />
-          <RootNavigator
-            passwordRecovery={passwordRecovery}
-            user={user}
-            role={role}
-            isSetupComplete={isSetupComplete}
-          />
-        </GuestModeProvider>
-      </ClientThemeProvider>
+      <GuestModeProvider>
+        <StatusBar style="light" backgroundColor="#0A0A0A" translucent={false} />
+        <RootNavigator
+          passwordRecovery={passwordRecovery}
+          user={user}
+          role={role}
+          isSetupComplete={isSetupComplete}
+        />
+      </GuestModeProvider>
     </SafeAreaProvider>
   );
 }

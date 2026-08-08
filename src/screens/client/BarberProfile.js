@@ -13,14 +13,14 @@ import {
 import { Calendar } from "react-native-calendars";
 import Icon from "react-native-vector-icons/Ionicons";
 import { useGuestMode } from "../../context/GuestModeContext";
+import { useLightStatusBar } from "../../hooks/useLightStatusBar";
 import { supabase } from "../../supabase/supabaseClient";
 import {
     borderRadius,
     colors,
     shadows,
     typography,
-} from "../../theme/clientTheme";
-import { useClientThemeMode } from "../../theme/ClientThemeMode";
+} from "../../theme/barberTheme";
 import { fetchServiceImageUrls } from "../../utils/serviceImageGallery";
 import { resolveStorageImageUrl } from "../../utils/storageImageUrl";
 import {
@@ -29,11 +29,13 @@ import {
 } from "../../utils/subscriptionState";
 
 export default function BarberProfile({ route, navigation }) {
-  const { colors: themeColors, isDark } = useClientThemeMode();
-  const { isGuest, requireAccount } = useGuestMode();
+  useLightStatusBar(colors.background);
+  const { isGuest, requireAccount, setPendingBooking } = useGuestMode();
   const BUFFER_MINUTES = 10;
-  // Destructure editMode and appointmentId from params
-  const { barberId, editMode, appointmentId } = route.params;
+  // Destructure editMode and appointmentId from params. prefill* comes back
+  // from ClientHome after a guest signs up/logs in mid-booking — see
+  // requireAccount below and ClientHome.js's pendingBooking effect.
+  const { barberId, editMode, appointmentId, prefillServiceId, prefillServiceName, prefillDate, prefillTime } = route.params;
   const [services, setServices] = useState([]);
   const [shop, setShop] = useState(null);
   const [selectedService, setSelectedService] = useState(null);
@@ -139,6 +141,16 @@ export default function BarberProfile({ route, navigation }) {
           );
           if (match) setSelectedService(match);
         }
+      } else if (prefillServiceId || prefillServiceName || prefillDate || prefillTime) {
+        // Restoring a guest's in-progress selection after they signed up, or
+        // a "Book again" tap from a past appointment (matched by name since
+        // that's all the appointments row stores, not the live service id).
+        if (prefillDate) setSelectedDate(prefillDate);
+        if (prefillTime) setSelectedTime(prefillTime);
+        const match = (svc || []).find(
+          (s) => s.id === prefillServiceId || (prefillServiceName && s.service_name === prefillServiceName),
+        );
+        if (match) setSelectedService(match);
       }
 
       const { data: ratings } = await supabase
@@ -205,12 +217,14 @@ export default function BarberProfile({ route, navigation }) {
         return;
       }
 
+      // Only pending/confirmed bookings hold a slot — declined, cancelled,
+      // completed, and no-show appointments free it back up.
       const { data: booked } = await supabase
         .from("appointments")
         .select("id, appointment_time, service_name")
         .eq("barber_id", barberId)
         .eq("appointment_date", selectedDate)
-        .neq("status", "cancelled");
+        .in("status", ["pending", "confirmed"]);
 
       const bookedList = booked || [];
       const activeBooked =
@@ -273,6 +287,16 @@ export default function BarberProfile({ route, navigation }) {
   const handleBooking = async () => {
     // Guests can browse everything here — services, prices, availability —
     // but booking writes a row tied to a client id, so it needs an account.
+    // Save whatever they'd already picked so it isn't lost the moment they
+    // hop over to sign up — see setPendingBooking/ClientHome.js.
+    if (isGuest) {
+      setPendingBooking({
+        barberId,
+        serviceId: selectedService?.id || null,
+        date: selectedDate || null,
+        time: selectedTime || null,
+      });
+    }
     if (requireAccount("book an appointment")) return;
 
     if (unavailableDateMap[selectedDate]?.disabled) {
@@ -327,7 +351,7 @@ export default function BarberProfile({ route, navigation }) {
           .select("appointment_time, service_name")
           .eq("barber_id", barberId)
           .eq("appointment_date", selectedDate)
-          .neq("status", "cancelled");
+          .in("status", ["pending", "confirmed"]);
         const chosenStart = hhmmToMinutes(timeNorm);
         const chosenDuration = getServiceDuration(selectedService);
         const serviceDurations = new Map(
@@ -379,7 +403,7 @@ export default function BarberProfile({ route, navigation }) {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <ActivityIndicator size="large" color={colors.accent} />
         <Text style={styles.loadingText}>Loading...</Text>
       </View>
     );
@@ -389,12 +413,12 @@ export default function BarberProfile({ route, navigation }) {
   // subscription lapsed) — show a friendly state instead of a broken page.
   if (shop?.shop_status === "locked") {
     return (
-      <View style={[styles.loadingContainer, { backgroundColor: themeColors.background, paddingHorizontal: 32 }]}>
-        <Icon name="storefront-outline" size={40} color={themeColors.textMuted} />
-        <Text style={[styles.loadingText, { color: themeColors.text, fontWeight: "800", marginTop: 14 }]}>
+      <View style={[styles.loadingContainer, { paddingHorizontal: 32 }]}>
+        <Icon name="storefront-outline" size={40} color={colors.textMuted} />
+        <Text style={[styles.loadingText, { color: colors.text, fontWeight: "800", marginTop: 14 }]}>
           Temporarily unavailable
         </Text>
-        <Text style={{ color: themeColors.textMuted, textAlign: "center", marginTop: 8, lineHeight: 20 }}>
+        <Text style={{ color: colors.textMuted, textAlign: "center", marginTop: 8, lineHeight: 20 }}>
           This shop isn't accepting bookings right now. Please check back later.
         </Text>
         <TouchableOpacity
@@ -402,7 +426,7 @@ export default function BarberProfile({ route, navigation }) {
           onPress={() => navigation.goBack()}
           activeOpacity={0.85}
         >
-          <Text style={{ color: themeColors.accent, fontWeight: "800" }}>Go back</Text>
+          <Text style={{ color: colors.accent, fontWeight: "800" }}>Go back</Text>
         </TouchableOpacity>
       </View>
     );
@@ -410,18 +434,18 @@ export default function BarberProfile({ route, navigation }) {
 
   const calendarTheme = {
     backgroundColor: "transparent",
-    calendarBackground: themeColors.surface,
-    textSectionTitleColor: themeColors.textSecondary,
-    selectedDayBackgroundColor: themeColors.accent,
-    selectedDayTextColor: isDark ? "#0A0A0A" : "#fff",
-    todayTextColor: themeColors.accent,
-    todayBackgroundColor: themeColors.accentSoft,
-    dayTextColor: themeColors.text,
-    textDisabledColor: themeColors.textMuted,
-    dotColor: themeColors.accent,
-    selectedDotColor: isDark ? "#0A0A0A" : "#fff",
-    arrowColor: themeColors.accent,
-    monthTextColor: themeColors.text,
+    calendarBackground: colors.surface,
+    textSectionTitleColor: colors.textSecondary,
+    selectedDayBackgroundColor: colors.accent,
+    selectedDayTextColor: colors.accentText,
+    todayTextColor: colors.accent,
+    todayBackgroundColor: colors.accentSoft,
+    dayTextColor: colors.text,
+    textDisabledColor: colors.textMuted,
+    dotColor: colors.accent,
+    selectedDotColor: colors.accentText,
+    arrowColor: colors.accent,
+    monthTextColor: colors.text,
     textDayFontWeight: "500",
     textMonthFontWeight: "600",
     textDayHeaderFontSize: 13,
@@ -431,60 +455,36 @@ export default function BarberProfile({ route, navigation }) {
 
   return (
     <ScrollView
-      style={[styles.container, { backgroundColor: themeColors.background }]}
+      style={styles.container}
       contentContainerStyle={styles.scrollContent}
       showsVerticalScrollIndicator={false}
     >
       <TouchableOpacity
         activeOpacity={0.9}
-        style={[
-          styles.headerCard,
-          {
-            backgroundColor: themeColors.surface,
-            borderColor: themeColors.border,
-          },
-        ]}
+        style={styles.headerCard}
         onPress={() => setShowProfilePreview(true)}
       >
-        <View
-          style={[
-            styles.headerIconWrap,
-            {
-              backgroundColor: themeColors.accentSoft,
-              borderColor: themeColors.border,
-            },
-          ]}
-        >
+        <View style={styles.headerIconWrap}>
           {shop?.avatar_url ? (
             <Image
               source={{ uri: resolveStorageImageUrl(shop.avatar_url) }}
               style={styles.headerAvatar}
             />
           ) : (
-            <Icon name="storefront" size={24} color={themeColors.accent} />
+            <Icon name="storefront" size={24} color={colors.accent} />
           )}
         </View>
         <View style={styles.headerTitleRow}>
-          <Text style={[styles.shopName, { color: themeColors.text }]}>
+          <Text style={styles.shopName}>
             {shop?.shop_name}
           </Text>
-          <View
-            style={[
-              styles.tapProfilePill,
-              {
-                backgroundColor: themeColors.accentSoft,
-                borderColor: themeColors.border,
-              },
-            ]}
-          >
+          <View style={styles.tapProfilePill}>
             <Icon
               name="person-circle-outline"
               size={14}
-              color={themeColors.accent}
+              color={colors.accent}
             />
-            <Text
-              style={[styles.tapProfileText, { color: themeColors.accent }]}
-            >
+            <Text style={styles.tapProfileText}>
               View profile
             </Text>
           </View>
@@ -493,20 +493,20 @@ export default function BarberProfile({ route, navigation }) {
           <Icon
             name="location-outline"
             size={16}
-            color={themeColors.textSecondary}
+            color={colors.textSecondary}
           />
-          <Text style={[styles.address, { color: themeColors.textSecondary }]}>
+          <Text style={styles.address}>
             {shop?.address}
           </Text>
         </View>
         {!!(shop?.description || shop?.slogan) && (
-          <Text style={[styles.sloganText, { color: themeColors.text }]}>
+          <Text style={styles.sloganText}>
             {shop?.description || shop?.slogan}
           </Text>
         )}
         {barberRating && (
           <View style={styles.ratingRow}>
-            <Icon name="star" size={18} color={themeColors.accent} />
+            <Icon name="star" size={18} color={colors.pending} />
             <Text style={styles.ratingText}>
               {barberRating.average} ({barberRating.count}{" "}
               {barberRating.count === 1 ? "review" : "reviews"})
@@ -514,17 +514,9 @@ export default function BarberProfile({ route, navigation }) {
           </View>
         )}
         {editMode && (
-          <View
-            style={[
-              styles.editBadge,
-              {
-                backgroundColor: themeColors.accentSoft,
-                borderColor: themeColors.border,
-              },
-            ]}
-          >
-            <Icon name="calendar" size={14} color={themeColors.accent} />
-            <Text style={[styles.editBadgeText, { color: themeColors.accent }]}>
+          <View style={styles.editBadge}>
+            <Icon name="calendar" size={14} color={colors.accent} />
+            <Text style={styles.editBadgeText}>
               Rescheduling appointment
             </Text>
           </View>
@@ -538,18 +530,10 @@ export default function BarberProfile({ route, navigation }) {
         onRequestClose={() => setGalleryVisible(false)}
       >
         <View style={styles.galleryOverlay}>
-          <View
-            style={[
-              styles.galleryCard,
-              {
-                backgroundColor: themeColors.surface,
-                borderColor: themeColors.border,
-              },
-            ]}
-          >
+          <View style={styles.galleryCard}>
             <View style={styles.galleryHeader}>
               <Text
-                style={[styles.galleryTitle, { color: themeColors.text }]}
+                style={styles.galleryTitle}
                 numberOfLines={1}
               >
                 {galleryServiceName || "Service photos"}
@@ -561,7 +545,7 @@ export default function BarberProfile({ route, navigation }) {
                 <Icon
                   name="close"
                   size={24}
-                  color={themeColors.textSecondary}
+                  color={colors.textSecondary}
                 />
               </TouchableOpacity>
             </View>
@@ -589,122 +573,69 @@ export default function BarberProfile({ route, navigation }) {
         onRequestClose={() => setShowProfilePreview(false)}
       >
         <View style={styles.profileModalOverlay}>
-          <View
-            style={[
-              styles.profileModalCard,
-              {
-                backgroundColor: themeColors.surface,
-                borderColor: themeColors.border,
-              },
-            ]}
-          >
+          <View style={styles.profileModalCard}>
             <TouchableOpacity
               style={styles.profileModalClose}
               onPress={() => setShowProfilePreview(false)}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <Icon name="close" size={22} color={themeColors.textSecondary} />
+              <Icon name="close" size={22} color={colors.textSecondary} />
             </TouchableOpacity>
 
-            <View
-              style={[
-                styles.profileAvatarWrapLarge,
-                {
-                  backgroundColor: themeColors.accentSoft,
-                  borderColor: themeColors.border,
-                },
-              ]}
-            >
+            <View style={styles.profileAvatarWrapLarge}>
               {shop?.avatar_url ? (
                 <Image
                   source={{ uri: resolveStorageImageUrl(shop.avatar_url) }}
                   style={styles.profileAvatarLarge}
                 />
               ) : (
-                <Icon name="storefront" size={30} color={themeColors.accent} />
+                <Icon name="storefront" size={30} color={colors.accent} />
               )}
             </View>
 
-            <Text
-              style={[styles.profileModalName, { color: themeColors.text }]}
-            >
+            <Text style={styles.profileModalName}>
               {shop?.shop_name || "Business"}
             </Text>
             <View style={styles.profileModalRow}>
               <Icon
                 name="location-outline"
                 size={16}
-                color={themeColors.textSecondary}
+                color={colors.textSecondary}
               />
-              <Text
-                style={[
-                  styles.profileModalAddress,
-                  { color: themeColors.textSecondary },
-                ]}
-              >
+              <Text style={styles.profileModalAddress}>
                 {shop?.address || "No address added"}
               </Text>
             </View>
 
             {shop?.description || shop?.slogan ? (
-              <Text
-                style={[styles.profileModalBio, { color: themeColors.text }]}
-              >
+              <Text style={styles.profileModalBio}>
                 {shop?.description || shop?.slogan}
               </Text>
             ) : null}
 
             <View style={styles.profileMetaRow}>
-              <View
-                style={[
-                  styles.profileMetaPill,
-                  {
-                    backgroundColor: themeColors.accentSoft,
-                    borderColor: themeColors.border,
-                  },
-                ]}
-              >
-                <Icon name="star" size={14} color={themeColors.accent} />
-                <Text
-                  style={[styles.profileMetaText, { color: themeColors.text }]}
-                >
+              <View style={styles.profileMetaPill}>
+                <Icon name="star" size={14} color={colors.pending} />
+                <Text style={styles.profileMetaText}>
                   {barberRating
                     ? `${barberRating.average} (${barberRating.count})`
                     : "No ratings yet"}
                 </Text>
               </View>
-              <View
-                style={[
-                  styles.profileMetaPill,
-                  {
-                    backgroundColor: themeColors.accentSoft,
-                    borderColor: themeColors.border,
-                  },
-                ]}
-              >
-                <Icon name="cut-outline" size={14} color={themeColors.accent} />
-                <Text
-                  style={[styles.profileMetaText, { color: themeColors.text }]}
-                >
+              <View style={styles.profileMetaPill}>
+                <Icon name="cut-outline" size={14} color={colors.accent} />
+                <Text style={styles.profileMetaText}>
                   {services.length} services
                 </Text>
               </View>
             </View>
 
             <TouchableOpacity
-              style={[
-                styles.profileModalBtn,
-                { backgroundColor: themeColors.accent },
-              ]}
+              style={styles.profileModalBtn}
               onPress={() => setShowProfilePreview(false)}
               activeOpacity={0.9}
             >
-              <Text
-                style={[
-                  styles.profileModalBtnText,
-                  { color: isDark ? "#0A0A0A" : "#fff" },
-                ]}
-              >
+              <Text style={styles.profileModalBtnText}>
                 Continue booking
               </Text>
             </TouchableOpacity>
@@ -712,18 +643,10 @@ export default function BarberProfile({ route, navigation }) {
         </View>
       </Modal>
 
-      <Text style={[styles.sectionHeader, { color: themeColors.text }]}>
+      <Text style={styles.sectionHeader}>
         1. Select service
       </Text>
-      <View
-        style={[
-          styles.servicesCard,
-          {
-            backgroundColor: themeColors.surface,
-            borderColor: themeColors.border,
-          },
-        ]}
-      >
+      <View style={styles.servicesCard}>
         {services.map((item) =>
           (() => {
             const serviceImages = item.image_gallery?.length
@@ -741,14 +664,7 @@ export default function BarberProfile({ route, navigation }) {
                 key={item.id}
                 style={[
                   styles.serviceRow,
-                  { borderColor: themeColors.border },
-                  selectedService?.id === item.id && [
-                    styles.selectedRow,
-                    {
-                      backgroundColor: themeColors.accentSoft,
-                      borderColor: themeColors.accent,
-                    },
-                  ],
+                  selectedService?.id === item.id && styles.selectedRow,
                 ]}
                 onPress={() => setSelectedService(item)}
                 activeOpacity={0.7}
@@ -769,52 +685,35 @@ export default function BarberProfile({ route, navigation }) {
                       ))}
                     </ScrollView>
                   ) : (
-                    <View
-                      style={[
-                        styles.serviceImagePlaceholder,
-                        {
-                          backgroundColor: themeColors.surfaceAlt,
-                          borderColor: themeColors.border,
-                        },
-                      ]}
-                    >
+                    <View style={styles.serviceImagePlaceholder}>
                       <Icon
                         name="image-outline"
                         size={20}
-                        color={themeColors.textMuted}
+                        color={colors.textMuted}
                       />
                     </View>
                   )}
                 </View>
                 <View style={styles.serviceMeta}>
                   <Text
-                    style={[styles.serviceText, { color: themeColors.text }]}
+                    style={styles.serviceText}
                     numberOfLines={1}
                   >
                     {item.service_name}
                   </Text>
                   <Text
-                    style={[
-                      styles.serviceSubText,
-                      { color: themeColors.textSecondary },
-                    ]}
+                    style={styles.serviceSubText}
                     numberOfLines={1}
                   >
                     {getServiceDuration(item)} min service
                   </Text>
                   <View style={styles.serviceBottomRow}>
-                    <Text style={[styles.price, { color: themeColors.accent }]}>
+                    <Text style={styles.price}>
                       R{item.price}
                     </Text>
                     <View style={styles.serviceActionRow}>
                       <TouchableOpacity
-                        style={[
-                          styles.viewPhotosChip,
-                          {
-                            backgroundColor: themeColors.surfaceAlt,
-                            borderColor: themeColors.border,
-                          },
-                        ]}
+                        style={styles.viewPhotosChip}
                         onPress={() => {
                           if (!serviceImages.length) return;
                           setGalleryServiceName(
@@ -829,11 +728,7 @@ export default function BarberProfile({ route, navigation }) {
                         <Text
                           style={[
                             styles.viewPhotosText,
-                            {
-                              color: serviceImages.length
-                                ? themeColors.textSecondary
-                                : themeColors.textMuted,
-                            },
+                            !serviceImages.length && { color: colors.textMuted },
                           ]}
                           numberOfLines={1}
                         >
@@ -844,28 +739,17 @@ export default function BarberProfile({ route, navigation }) {
                           size={13}
                           color={
                             serviceImages.length
-                              ? themeColors.textSecondary
-                              : themeColors.textMuted
+                              ? colors.textSecondary
+                              : colors.textMuted
                           }
                         />
                       </TouchableOpacity>
                       <TouchableOpacity
-                        style={[
-                          styles.bookNowChip,
-                          {
-                            backgroundColor: themeColors.accentSoft,
-                            borderColor: themeColors.border,
-                          },
-                        ]}
+                        style={styles.bookNowChip}
                         onPress={() => setSelectedService(item)}
                         activeOpacity={0.85}
                       >
-                        <Text
-                          style={[
-                            styles.bookNowText,
-                            { color: themeColors.accent },
-                          ]}
-                        >
+                        <Text style={styles.bookNowText}>
                           Book Now
                         </Text>
                       </TouchableOpacity>
@@ -878,18 +762,10 @@ export default function BarberProfile({ route, navigation }) {
         )}
       </View>
 
-      <Text style={[styles.sectionHeader, { color: themeColors.text }]}>
+      <Text style={styles.sectionHeader}>
         2. Choose date
       </Text>
-      <View
-        style={[
-          styles.calendarWrap,
-          {
-            backgroundColor: themeColors.surface,
-            borderColor: themeColors.border,
-          },
-        ]}
-      >
+      <View style={styles.calendarWrap}>
         <Calendar
           minDate={today}
           onDayPress={(day) => {
@@ -908,7 +784,7 @@ export default function BarberProfile({ route, navigation }) {
               ? {
                   [selectedDate]: {
                     selected: true,
-                    selectedColor: colors.primary,
+                    selectedColor: colors.accent,
                   },
                 }
               : {}),
@@ -919,7 +795,7 @@ export default function BarberProfile({ route, navigation }) {
 
       {selectedDate && (
         <>
-          <Text style={[styles.sectionHeader, { color: themeColors.text }]}>
+          <Text style={styles.sectionHeader}>
             3. Available times
           </Text>
           <View style={styles.slotsContainer}>
@@ -928,17 +804,7 @@ export default function BarberProfile({ route, navigation }) {
                 key={time}
                 style={[
                   styles.slot,
-                  {
-                    backgroundColor: themeColors.surface,
-                    borderColor: themeColors.border,
-                  },
-                  selectedTime === time && [
-                    styles.selectedSlot,
-                    {
-                      backgroundColor: themeColors.accent,
-                      borderColor: themeColors.accent,
-                    },
-                  ],
+                  selectedTime === time && styles.selectedSlot,
                 ]}
                 onPress={() => setSelectedTime(time)}
                 activeOpacity={0.7}
@@ -946,11 +812,7 @@ export default function BarberProfile({ route, navigation }) {
                 <Text
                   style={[
                     styles.slotText,
-                    { color: themeColors.text },
-                    selectedTime === time && [
-                      styles.slotTextSelected,
-                      { color: isDark ? "#0A0A0A" : "#fff" },
-                    ],
+                    selectedTime === time && styles.slotTextSelected,
                   ]}
                 >
                   {time}
@@ -964,14 +826,7 @@ export default function BarberProfile({ route, navigation }) {
       <TouchableOpacity
         style={[
           styles.bookBtn,
-          {
-            backgroundColor: themeColors.accent,
-            borderColor: themeColors.border,
-          },
-          !isGuest && !selectedTime && [
-            styles.bookBtnDisabled,
-            { backgroundColor: themeColors.textMuted },
-          ],
+          !isGuest && !selectedTime && styles.bookBtnDisabled,
         ]}
         onPress={handleBooking}
         // Guests stay tappable even without a slot picked — tapping is how
@@ -985,21 +840,16 @@ export default function BarberProfile({ route, navigation }) {
         activeOpacity={0.85}
       >
         {booking ? (
-          <ActivityIndicator color={isDark ? "#0A0A0A" : "#fff"} />
+          <ActivityIndicator color={colors.accentText} />
         ) : (
           <>
             <Icon
               name={isGuest ? "person-add" : "checkmark-circle"}
               size={22}
-              color={isDark ? "#0A0A0A" : "#fff"}
+              color={colors.accentText}
               style={{ marginRight: 8 }}
             />
-            <Text
-              style={[
-                styles.bookBtnText,
-                { color: isDark ? "#0A0A0A" : "#fff" },
-              ]}
-            >
+            <Text style={styles.bookBtnText}>
               {isGuest
                 ? "Sign up to book"
                 : editMode
@@ -1036,7 +886,9 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: borderRadius.md,
-    backgroundColor: colors.pendingBg,
+    backgroundColor: colors.accentSoft,
+    borderWidth: 1,
+    borderColor: colors.border,
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 12,
@@ -1055,11 +907,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 4,
     borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.accentSoft,
     borderRadius: 999,
     paddingVertical: 5,
     paddingHorizontal: 9,
   },
-  tapProfileText: { fontSize: 11, fontWeight: "800" },
+  tapProfileText: { fontSize: 11, fontWeight: "800", color: colors.accent },
   addressRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   address: { fontSize: 14, color: colors.textSecondary, flex: 1 },
   sloganText: {
@@ -1074,21 +928,21 @@ const styles = StyleSheet.create({
     gap: 6,
     marginTop: 10,
   },
-  ratingText: { fontSize: 14, fontWeight: "600", color: colors.accent },
+  ratingText: { fontSize: 14, fontWeight: "600", color: colors.pending },
   editBadge: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    backgroundColor: colors.pendingBg,
+    backgroundColor: colors.accentSoft,
     paddingVertical: 10,
     paddingHorizontal: 14,
     borderRadius: borderRadius.sm,
     marginTop: 14,
     borderWidth: 1,
-    borderColor: colors.accent + "50",
+    borderColor: colors.border,
   },
-  editBadgeText: { color: colors.pending, fontWeight: "600", fontSize: 13 },
+  editBadgeText: { color: colors.accent, fontWeight: "600", fontSize: 13 },
   sectionHeader: {
     ...typography.sectionHeader,
     color: colors.text,
@@ -1111,11 +965,11 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: borderRadius.md,
     borderWidth: 1,
-    borderColor: colors.border + "40",
+    borderColor: colors.border,
     marginBottom: 10,
   },
   selectedRow: {
-    backgroundColor: colors.pendingBg,
+    backgroundColor: colors.accentSoft,
     borderWidth: 2,
     borderColor: colors.accent,
   },
@@ -1123,7 +977,7 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: borderRadius.md,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceMuted,
     marginRight: 8,
   },
   serviceImagesWrap: {
@@ -1137,7 +991,7 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: borderRadius.md,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceMuted,
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 1,
@@ -1158,9 +1012,9 @@ const styles = StyleSheet.create({
     marginTop: 8,
     gap: 8,
   },
-  price: { fontSize: 16, fontWeight: "700", color: colors.primary },
+  price: { fontSize: 16, fontWeight: "700", color: colors.accent },
   bookNowChip: {
-    backgroundColor: colors.pendingBg,
+    backgroundColor: colors.accentSoft,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: borderRadius.sm,
@@ -1171,7 +1025,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   bookNowText: {
-    color: colors.white,
+    color: colors.accent,
     fontSize: 13,
     fontWeight: "800",
   },
@@ -1187,6 +1041,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 4,
     borderWidth: 1,
+    borderColor: colors.border,
     borderRadius: borderRadius.sm,
     paddingHorizontal: 8,
     paddingVertical: 8,
@@ -1196,6 +1051,7 @@ const styles = StyleSheet.create({
   viewPhotosText: {
     fontSize: 13,
     fontWeight: "700",
+    color: colors.textSecondary,
   },
   calendarWrap: {
     backgroundColor: colors.surface,
@@ -1223,16 +1079,16 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   selectedSlot: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
   },
   slotText: { fontSize: 15, fontWeight: "600", color: colors.text },
-  slotTextSelected: { color: colors.white },
+  slotTextSelected: { color: colors.accentText },
   bookBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.primary,
+    backgroundColor: colors.accent,
     paddingVertical: 18,
     paddingHorizontal: 24,
     borderRadius: borderRadius.lg,
@@ -1242,7 +1098,7 @@ const styles = StyleSheet.create({
     ...shadows.button,
   },
   bookBtnDisabled: { backgroundColor: colors.textMuted, opacity: 0.8 },
-  bookBtnText: { ...typography.button, color: colors.white },
+  bookBtnText: { ...typography.button, color: colors.accentText },
   profileModalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.55)",
@@ -1254,6 +1110,8 @@ const styles = StyleSheet.create({
     width: "100%",
     borderRadius: borderRadius.xl,
     borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
     padding: 18,
   },
   profileModalClose: { alignSelf: "flex-end" },
@@ -1265,6 +1123,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     overflow: "hidden",
     borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.accentSoft,
     marginTop: 4,
     marginBottom: 10,
     alignSelf: "center",
@@ -1275,6 +1135,7 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     textAlign: "center",
     marginBottom: 8,
+    color: colors.text,
   },
   profileModalRow: {
     flexDirection: "row",
@@ -1282,28 +1143,31 @@ const styles = StyleSheet.create({
     gap: 6,
     marginBottom: 10,
   },
-  profileModalAddress: { fontSize: 15, lineHeight: 21, flex: 1 },
-  profileModalBio: { fontSize: 16, fontStyle: "italic", marginBottom: 12 },
+  profileModalAddress: { fontSize: 15, lineHeight: 21, flex: 1, color: colors.textSecondary },
+  profileModalBio: { fontSize: 16, fontStyle: "italic", marginBottom: 12, color: colors.text },
   profileMetaRow: { flexDirection: "row", gap: 10, marginBottom: 12 },
   profileMetaPill: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
     borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.accentSoft,
     borderRadius: 999,
     paddingVertical: 7,
     paddingHorizontal: 10,
     flex: 1,
     justifyContent: "center",
   },
-  profileMetaText: { fontSize: 12, fontWeight: "800" },
+  profileMetaText: { fontSize: 12, fontWeight: "800", color: colors.text },
   profileModalBtn: {
     borderRadius: borderRadius.md,
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 13,
+    backgroundColor: colors.accent,
   },
-  profileModalBtnText: { fontSize: 15, fontWeight: "900" },
+  profileModalBtnText: { fontSize: 15, fontWeight: "900", color: colors.accentText },
   galleryOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.55)",
@@ -1313,6 +1177,8 @@ const styles = StyleSheet.create({
   galleryCard: {
     borderRadius: borderRadius.xl,
     borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
     padding: 14,
   },
   galleryHeader: {
@@ -1326,6 +1192,7 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     flex: 1,
     marginRight: 8,
+    color: colors.text,
   },
   galleryImageRow: {
     gap: 10,
@@ -1335,6 +1202,6 @@ const styles = StyleSheet.create({
     width: 210,
     height: 210,
     borderRadius: borderRadius.md,
-    backgroundColor: colors.background,
+    backgroundColor: colors.surfaceMuted,
   },
 });

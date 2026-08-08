@@ -10,7 +10,7 @@ import {
     View,
 } from "react-native";
 import Icon from "react-native-vector-icons/Ionicons";
-import { borderRadius, colors, shadows, typography } from "../../theme/clientTheme";
+import { borderRadius, colors, shadows, typography } from "../../theme/barberTheme";
 
 const STAR_COUNT = 5;
 
@@ -82,7 +82,7 @@ export default function RateBarberModal({ visible, onClose, appointment, onSubmi
                 <Icon
                   name={rating >= value ? "star" : "star-outline"}
                   size={40}
-                  color={rating >= value ? colors.accent : colors.border}
+                  color={rating >= value ? colors.pending : colors.border}
                 />
               </TouchableOpacity>
             ))}
@@ -107,10 +107,10 @@ export default function RateBarberModal({ visible, onClose, appointment, onSubmi
             activeOpacity={0.85}
           >
             {submitting ? (
-              <ActivityIndicator color={colors.white} />
+              <ActivityIndicator color={colors.accentText} />
             ) : (
               <>
-                <Icon name="send" size={20} color={colors.white} />
+                <Icon name="send" size={20} color={colors.accentText} />
                 <Text style={styles.submitBtnText}>Submit rating</Text>
               </>
             )}
@@ -145,7 +145,7 @@ const styles = StyleSheet.create({
   starsRow: { flexDirection: "row", justifyContent: "center", gap: 8, marginBottom: 8 },
   starBtn: { padding: 4 },
   input: {
-    backgroundColor: colors.background,
+    backgroundColor: colors.surfaceMuted,
     borderRadius: borderRadius.md,
     padding: 14,
     fontSize: 15,
@@ -160,12 +160,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.accent,
     paddingVertical: 16,
     borderRadius: borderRadius.lg,
     marginTop: 24,
     ...shadows.button,
   },
   submitBtnDisabled: { opacity: 0.7 },
-  submitBtnText: { ...typography.button, color: colors.white },
+  submitBtnText: { ...typography.button, color: colors.accentText },
 });

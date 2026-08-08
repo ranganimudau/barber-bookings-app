@@ -17,13 +17,22 @@ const GuestModeContext = createContext({
   enterGuestMode: () => {},
   exitGuestMode: () => {},
   requireAccount: () => false,
+  pendingBooking: null,
+  setPendingBooking: () => {},
+  clearPendingBooking: () => {},
 });
 
 export function GuestModeProvider({ children }) {
   const [isGuest, setIsGuest] = useState(false);
+  // Holds a guest's in-progress service/date/time pick across the
+  // sign-up-or-log-in detour, so tapping "Sign up to book" doesn't throw
+  // away the choice they just made — see BarberProfile.js and ClientHome.js.
+  const [pendingBooking, setPendingBookingState] = useState(null);
 
   const enterGuestMode = useCallback(() => setIsGuest(true), []);
   const exitGuestMode = useCallback(() => setIsGuest(false), []);
+  const setPendingBooking = useCallback((booking) => setPendingBookingState(booking), []);
+  const clearPendingBooking = useCallback(() => setPendingBookingState(null), []);
 
   /**
    * Call at the top of any account-only action. Returns true when the
@@ -48,8 +57,16 @@ export function GuestModeProvider({ children }) {
   );
 
   const value = useMemo(
-    () => ({ isGuest, enterGuestMode, exitGuestMode, requireAccount }),
-    [isGuest, enterGuestMode, exitGuestMode, requireAccount]
+    () => ({
+      isGuest,
+      enterGuestMode,
+      exitGuestMode,
+      requireAccount,
+      pendingBooking,
+      setPendingBooking,
+      clearPendingBooking,
+    }),
+    [isGuest, enterGuestMode, exitGuestMode, requireAccount, pendingBooking, setPendingBooking, clearPendingBooking]
   );
 
   return <GuestModeContext.Provider value={value}>{children}</GuestModeContext.Provider>;

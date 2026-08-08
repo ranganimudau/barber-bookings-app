@@ -12,7 +12,7 @@ import BarberSettings from '../screens/barber/BarberSettings';
 import EditProfile from '../screens/barber/EditProfile';
 import Services from '../screens/barber/Services';
 import SubscriptionSettings from '../screens/barber/SubscriptionSettings';
-import SupportInfo from '../screens/barber/SupportInfo';
+import SupportInfo from '../screens/common/SupportInfo';
 import { colors as barberColors } from '../theme/barberTheme';
 
 const Tab = createBottomTabNavigator();

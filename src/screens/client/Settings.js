@@ -1,140 +1,108 @@
-import * as ImagePicker from 'expo-image-picker';
-import React, { useEffect, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
+import React, { useCallback, useState } from "react";
 import {
     ActivityIndicator,
     Alert,
     Image,
-    Keyboard,
-    KeyboardAvoidingView,
-    Platform,
+    Linking,
     ScrollView,
-    Switch,
     StyleSheet,
+    Switch,
     Text,
-    TextInput,
     TouchableOpacity,
     View,
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
-import KeyboardDoneBar from "../../components/common/KeyboardDoneBar";
-import { useKeyboardInset } from "../../hooks/useKeyboardInset";
+import { useLightStatusBar } from "../../hooks/useLightStatusBar";
 import { supabase } from "../../supabase/supabaseClient";
-import { borderRadius, colors, shadows, typography } from "../../theme/clientTheme";
-import { useClientThemeMode } from "../../theme/ClientThemeMode";
+import { borderRadius, colors, shadows } from "../../theme/barberTheme";
 
-export default function Settings() {
-    const { isDark, toggleMode, colors: themeColors } = useClientThemeMode();
-    const keyboardInset = useKeyboardInset();
+// Change this once the app has its own domain and a real support inbox.
+const SUPPORT_EMAIL = "ranganimudau55@gmail.com";
+
+const NOTIFICATION_TOGGLES = [
+    { key: "notify_booking_confirmed", title: "Booking confirmed" },
+    { key: "notify_booking_declined", title: "Booking declined or cancelled" },
+    { key: "notify_reminders", title: "Appointment reminders" },
+];
+
+const FAQ_BODY =
+    "How do I book?\nOpen Find a pro, tap a business, pick a service, a date and a time, then Confirm booking. Your request goes to the business to accept.\n\n" +
+    "Why is my booking still pending?\nEvery booking has to be accepted by the business. You'll get a notification as soon as they respond.\n\n" +
+    "Can I cancel?\nYes — open My bookings and tap Cancel. Cancelling within 48 hours of the appointment is recorded as a late cancellation and is visible to the business.\n\n" +
+    "Can I reschedule?\nUp to 48 hours before your appointment, from My bookings. Inside 48 hours you can still cancel.\n\n" +
+    "When can I leave a rating?\nOnce the business marks your visit as completed.\n\n" +
+    "Still stuck? Use Contact support.";
+
+export default function Settings({ navigation }) {
+    useLightStatusBar(colors.background);
     const [loading, setLoading] = useState(true);
-    const [updating, setUpdating] = useState(false);
-    const [profile, setProfile] = useState({
-        full_name: "",
-        phone_number: "",
-        avatar_url: null,
+    const [email, setEmail] = useState("");
+    const [profile, setProfile] = useState({ full_name: "", avatar_url: null });
+    const [notifyPrefs, setNotifyPrefs] = useState({
+        notify_booking_confirmed: true,
+        notify_booking_declined: true,
+        notify_reminders: true,
     });
 
-    useEffect(() => {
-        fetchProfile();
-    }, []);
+    // Refetch on focus so edits made on the Edit profile screen show up in
+    // the summary card when you come back.
+    useFocusEffect(
+        useCallback(() => {
+            let cancelled = false;
+            (async () => {
+                try {
+                    const { data: { user } } = await supabase.auth.getUser();
+                    if (cancelled || !user) return;
+                    setEmail(user.email || "");
 
-    const fetchProfile = async () => {
-        try {
-            const { data: { user } } = await supabase.auth.getUser();
-            const { data, error } = await supabase
-                .from("profiles")
-                .select("full_name, phone_number, avatar_url")
-                .eq("id", user.id)
-                .single();
+                    const { data, error } = await supabase
+                        .from("profiles")
+                        .select("full_name, avatar_url, notify_booking_confirmed, notify_booking_declined, notify_reminders")
+                        .eq("id", user.id)
+                        .single();
 
-            if (error) throw error;
-            if (data) setProfile(data);
-        } catch (error) {
-            console.error("Fetch Error:", error.message);
-        } finally {
-            setLoading(false);
-        }
-    };
+                    if (error) throw error;
+                    if (cancelled || !data) return;
 
-    const uploadAvatar = async () => {
-        try {
-            const result = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: 'images',
-                allowsEditing: true,
-                aspect: [1, 1],
-                quality: 0.5,
-            });
+                    setProfile({ full_name: data.full_name || "", avatar_url: data.avatar_url });
+                    setNotifyPrefs({
+                        notify_booking_confirmed: data.notify_booking_confirmed !== false,
+                        notify_booking_declined: data.notify_booking_declined !== false,
+                        notify_reminders: data.notify_reminders !== false,
+                    });
+                } catch (error) {
+                    console.error("Fetch Error:", error.message);
+                } finally {
+                    if (!cancelled) setLoading(false);
+                }
+            })();
+            return () => { cancelled = true; };
+        }, [])
+    );
 
-            if (result.canceled) return;
-
-            setUpdating(true);
-            const photo = result.assets[0];
-            const { data: { user } } = await supabase.auth.getUser();
-
-            const fileExt = photo.uri.split('.').pop();
-            const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-            const filePath = fileName;
-
-            const formData = new FormData();
-            formData.append('file', {
-                uri: photo.uri,
-                name: fileName,
-                type: `image/${fileExt === 'jpg' ? 'jpeg' : fileExt}`,
-            });
-
-            // Upload to Supabase Storage
-            const { error: uploadError } = await supabase.storage
-                .from('avatars')
-                .upload(filePath, formData);
-
-            if (uploadError) throw uploadError;
-
-            const { data: urlData } = supabase.storage
-                .from('avatars')
-                .getPublicUrl(filePath);
-
-            const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`;
-
-            // Update database profile
-            await supabase
-                .from('profiles')
-                .update({ avatar_url: publicUrl })
-                .eq('id', user.id);
-
-            setProfile({ ...profile, avatar_url: publicUrl });
-            Alert.alert("Success", "Profile picture updated!");
-        } catch (error) {
-            Alert.alert("Upload Error", error.message);
-        } finally {
-            setUpdating(false);
-        }
-    };
-
-    const handleUpdateProfile = async () => {
-        setUpdating(true);
+    // Saved immediately rather than behind a Save button — a switch that
+    // silently needs saving elsewhere reads as broken.
+    const toggleNotification = async (key) => {
+        const next = !notifyPrefs[key];
+        setNotifyPrefs((prev) => ({ ...prev, [key]: next }));
         try {
             const { data: { user } } = await supabase.auth.getUser();
             const { error } = await supabase
                 .from("profiles")
-                .update({
-                    full_name: profile.full_name,
-                    phone_number: profile.phone_number,
-                })
+                .update({ [key]: next })
                 .eq("id", user.id);
-
             if (error) throw error;
-            Alert.alert("Success", "Profile details updated!");
         } catch (error) {
-            Alert.alert("Update Error", error.message);
-        } finally {
-            setUpdating(false);
+            setNotifyPrefs((prev) => ({ ...prev, [key]: !next })); // put it back
+            Alert.alert("Couldn't save", "That setting didn't save. Check your connection and try again.");
         }
     };
 
-    // New: Handle Account Deletion logic
-    const handleDeleteAccount = async () => {
+    const handleDeleteAccount = () => {
         Alert.alert(
             "Delete Account",
-            "This will permanently delete your profile and appointments. This action cannot be undone.",
+            "This will permanently delete your profile and appointment history. Any upcoming bookings will be cancelled and the business notified. This action cannot be undone.",
             [
                 { text: "Cancel", style: "cancel" },
                 {
@@ -142,8 +110,17 @@ export default function Settings() {
                     style: "destructive",
                     onPress: async () => {
                         try {
-                            setUpdating(true);
                             const { data: { user } } = await supabase.auth.getUser();
+
+                            // Cancel anything still open first, rather than just
+                            // wiping the rows — this is the update the business's
+                            // push notification reacts to, so they find out the
+                            // slot is free instead of holding it for no one.
+                            await supabase
+                                .from('appointments')
+                                .update({ status: 'cancelled' })
+                                .eq('client_id', user.id)
+                                .in('status', ['pending', 'confirmed']);
 
                             // Delete related data first to avoid foreign key errors
                             await supabase.from('appointments').delete().eq('client_id', user.id);
@@ -152,8 +129,6 @@ export default function Settings() {
                             await supabase.auth.signOut();
                         } catch (error) {
                             Alert.alert("Error", error.message);
-                        } finally {
-                            setUpdating(false);
                         }
                     }
                 }
@@ -161,251 +136,227 @@ export default function Settings() {
         );
     };
 
+    const openSupportEmail = () => {
+        Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=SkoonBook%20support`).catch(() =>
+            Alert.alert("No email app", `Email us at ${SUPPORT_EMAIL}`)
+        );
+    };
+
     if (loading) {
         return (
-            <View style={[styles.loaderWrap, { backgroundColor: themeColors.background }]}>
-                <ActivityIndicator size="large" color={colors.primary} />
-                <Text style={[styles.loadingText, { color: themeColors.textSecondary }]}>Loading profile...</Text>
+            <View style={styles.loaderWrap}>
+                <ActivityIndicator size="large" color={colors.accent} />
             </View>
         );
     }
 
     return (
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <ScrollView
-            style={[styles.container, { backgroundColor: themeColors.background }]}
-            contentContainerStyle={[styles.scrollContent, { paddingBottom: 40 + keyboardInset + 20 }]}
+            style={styles.container}
+            contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
         >
-            <View style={styles.avatarSection}>
-                <TouchableOpacity onPress={uploadAvatar} disabled={updating} style={styles.avatarTouch}>
-                    {profile.avatar_url ? (
-                        <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
-                    ) : (
-                        <View style={styles.avatarPlaceholder}>
-                            <Ionicons name="person" size={48} color={colors.textMuted} />
-                        </View>
-                    )}
-                    <View style={styles.cameraIcon}>
-                        {updating ? (
-                            <ActivityIndicator size="small" color={colors.white} />
-                        ) : (
-                            <Ionicons name="camera" size={20} color={colors.white} />
-                        )}
-                    </View>
-                </TouchableOpacity>
-                <Text style={[styles.avatarHint, { color: themeColors.textMuted }]}>Tap to change photo</Text>
-            </View>
-
-            <View style={[styles.section, { backgroundColor: themeColors.surface, borderColor: themeColors.border }]}>
-                <Text style={[styles.sectionTitle, { color: themeColors.text }]}>Profile details</Text>
-                <Text style={[styles.label, { color: themeColors.textMuted }]}>Full name</Text>
-                <TextInput
-                    style={[styles.input, { backgroundColor: themeColors.surfaceAlt, borderColor: themeColors.border, color: themeColors.text }]}
-                    value={profile.full_name}
-                    onChangeText={(t) => setProfile({ ...profile, full_name: t })}
-                    placeholder="Enter your name"
-                    placeholderTextColor={themeColors.textMuted}
-                    returnKeyType="done"
-                    onSubmitEditing={Keyboard.dismiss}
-                />
-
-                <Text style={[styles.label, { color: themeColors.textMuted }]}>Phone number</Text>
-                <TextInput
-                    style={[styles.input, { backgroundColor: themeColors.surfaceAlt, borderColor: themeColors.border, color: themeColors.text }]}
-                    value={profile.phone_number}
-                    onChangeText={(t) => setProfile({ ...profile, phone_number: t })}
-                    keyboardType="phone-pad"
-                    placeholder="Enter your phone number"
-                    placeholderTextColor={themeColors.textMuted}
-                    returnKeyType="done"
-                    onSubmitEditing={Keyboard.dismiss}
-                />
-
-                <View style={[styles.themeRow, { borderColor: themeColors.border }]}>
-                    <View style={styles.themeRowLeft}>
-                        <Ionicons name={isDark ? "moon-outline" : "sunny-outline"} size={18} color={themeColors.accent} />
-                        <View style={styles.themeTextWrap}>
-                            <Text style={[styles.themeTitle, { color: themeColors.text }]}>Appearance</Text>
-                            <Text style={[styles.themeSub, { color: themeColors.textMuted }]}>
-                                {isDark ? "Dark mode" : "Light mode"}
-                            </Text>
-                        </View>
-                    </View>
-                    <Switch
-                        value={!isDark}
-                        onValueChange={toggleMode}
-                        trackColor={{ false: "#545454", true: "rgba(166,124,82,0.55)" }}
-                        thumbColor={isDark ? "#f4f3f4" : themeColors.accent}
-                    />
-                </View>
-
-                <TouchableOpacity
-                    style={[styles.saveBtn, { backgroundColor: themeColors.surfaceAlt, borderColor: themeColors.border }]}
-                    onPress={handleUpdateProfile}
-                    disabled={updating}
-                    activeOpacity={0.85}
-                >
-                    {updating ? (
-                        <ActivityIndicator color={colors.white} size="small" />
-                    ) : (
-                        <>
-                            <Ionicons name="checkmark-circle" size={22} color={colors.white} />
-                                <Text style={[styles.saveBtnText, { color: themeColors.text }]}>Save changes</Text>
-                        </>
-                    )}
-                </TouchableOpacity>
-            </View>
-
-            <View style={styles.dangerSection}>
-                <Text style={styles.dangerTitle}>Danger zone</Text>
-                <Text style={styles.dangerSubtitle}>Permanently delete your account and data.</Text>
-                <TouchableOpacity style={styles.deleteBtn} onPress={handleDeleteAccount} activeOpacity={0.8}>
-                    <Ionicons name="trash-outline" size={20} color={colors.error} />
-                    <Text style={styles.deleteText}>Delete account data</Text>
-                </TouchableOpacity>
-            </View>
-
+            {/* Photo + name + email only — the editable form lives one tap
+                away so this page stays a short list of rows. */}
             <TouchableOpacity
-                style={[styles.logoutBtn, { backgroundColor: themeColors.surface, borderColor: themeColors.border }]}
-                onPress={() => supabase.auth.signOut()}
-                activeOpacity={0.8}
+                style={styles.profileCard}
+                onPress={() => navigation.navigate("EditProfile")}
+                activeOpacity={0.85}
             >
-                <Ionicons name="log-out-outline" size={22} color={themeColors.textSecondary} />
-                <Text style={[styles.logoutText, { color: themeColors.textSecondary }]}>Log out</Text>
+                {profile.avatar_url ? (
+                    <Image source={{ uri: profile.avatar_url }} style={styles.profileAvatar} />
+                ) : (
+                    <View style={styles.profileAvatarFallback}>
+                        <Ionicons name="person" size={24} color={colors.textMuted} />
+                    </View>
+                )}
+                <View style={styles.profileTextWrap}>
+                    <Text style={styles.profileName} numberOfLines={1}>
+                        {profile.full_name || "Your profile"}
+                    </Text>
+                    <Text style={styles.profileEmail} numberOfLines={1}>{email}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
             </TouchableOpacity>
+
+            <Text style={styles.groupLabel}>Account</Text>
+            <View style={styles.group}>
+                <TouchableOpacity
+                    style={styles.row}
+                    onPress={() => navigation.navigate("EditProfile")}
+                    activeOpacity={0.8}
+                >
+                    <Text style={styles.rowTitle}>Edit profile</Text>
+                    <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={[styles.row, styles.rowLast]}
+                    onPress={() => supabase.auth.signOut()}
+                    activeOpacity={0.8}
+                >
+                    <Text style={styles.rowTitle}>Log out</Text>
+                    <Ionicons name="log-out-outline" size={20} color={colors.textMuted} />
+                </TouchableOpacity>
+            </View>
+
+            <Text style={styles.groupLabel}>Preferences</Text>
+            <View style={styles.group}>
+                {NOTIFICATION_TOGGLES.map((item) => (
+                    <View key={item.key} style={styles.row}>
+                        <Text style={styles.rowTitle}>{item.title}</Text>
+                        <Switch
+                            value={notifyPrefs[item.key]}
+                            onValueChange={() => toggleNotification(item.key)}
+                            trackColor={{ false: colors.borderStrong, true: colors.accent }}
+                            thumbColor={colors.white}
+                        />
+                    </View>
+                ))}
+                <TouchableOpacity
+                    style={[styles.row, styles.rowLast]}
+                    onPress={() =>
+                        Alert.alert(
+                            "Language",
+                            "SkoonBook is currently available in English only. More South African languages are on the way."
+                        )
+                    }
+                    activeOpacity={0.8}
+                >
+                    <Text style={styles.rowTitle}>Language</Text>
+                    <View style={styles.rowValueWrap}>
+                        <Text style={styles.rowValue}>English</Text>
+                        <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+                    </View>
+                </TouchableOpacity>
+            </View>
+
+            <Text style={styles.groupLabel}>More</Text>
+            <View style={styles.group}>
+                <TouchableOpacity style={styles.row} onPress={openSupportEmail} activeOpacity={0.8}>
+                    <Text style={styles.rowTitle}>Contact support</Text>
+                    <Ionicons name="mail-outline" size={20} color={colors.textMuted} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={styles.row}
+                    onPress={() => navigation.navigate("SupportInfo", { title: "Help & FAQ", body: FAQ_BODY })}
+                    activeOpacity={0.8}
+                >
+                    <Text style={styles.rowTitle}>Help &amp; FAQ</Text>
+                    <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={[styles.row, styles.rowLast]}
+                    onPress={() => navigation.navigate("AboutLegal")}
+                    activeOpacity={0.8}
+                >
+                    <Text style={styles.rowTitle}>About &amp; legal</Text>
+                    <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+                </TouchableOpacity>
+            </View>
+
+            {/* Outlined rather than filled: a solid red block made deleting
+                your account the loudest thing on the screen. */}
+            <TouchableOpacity style={styles.deleteBtn} onPress={handleDeleteAccount} activeOpacity={0.8}>
+                <Ionicons name="trash-outline" size={18} color={colors.error} />
+                <Text style={styles.deleteText}>Delete account</Text>
+            </TouchableOpacity>
+            <Text style={styles.deleteHint}>
+                Permanently deletes your profile and history. Upcoming bookings are cancelled and the
+                businesses notified.
+            </Text>
         </ScrollView>
-        <KeyboardDoneBar inset={keyboardInset} />
-        </KeyboardAvoidingView>
     );
 }
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
-    scrollContent: { padding: 20, paddingBottom: 40 },
+    scrollContent: { padding: 16, paddingBottom: 32 },
     loaderWrap: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
         backgroundColor: colors.background,
     },
-    loadingText: { marginTop: 12, fontSize: 15, color: '#D3D7E0', fontWeight: '700' },
-    avatarSection: { alignItems: 'center', marginTop: 20, marginBottom: 22 },
-    avatarTouch: { position: 'relative' },
-    avatar: {
-        width: 120,
-        height: 120,
-        borderRadius: 60,
-        borderWidth: 3.5,
-        borderColor: 'rgba(197,160,112,0.65)',
-    },
-    avatarPlaceholder: {
-        width: 120,
-        height: 120,
-        borderRadius: 60,
-        backgroundColor: '#121216',
-        justifyContent: 'center',
+
+    profileCard: {
+        flexDirection: 'row',
         alignItems: 'center',
-        borderWidth: 2,
-        borderColor: 'rgba(197,160,112,0.42)',
-    },
-    cameraIcon: {
-        position: 'absolute',
-        bottom: 0,
-        right: 0,
-        backgroundColor: '#0A0A0A',
-        padding: 10,
-        borderRadius: 20,
-        borderWidth: 1,
-        borderColor: 'rgba(197,160,112,0.42)',
-        ...shadows.button,
-    },
-    avatarHint: { marginTop: 10, fontSize: 13, color: '#C7CEDD', fontWeight: '700' },
-    section: {
-        backgroundColor: '#121216',
-        padding: 18,
+        backgroundColor: colors.surface,
         borderRadius: borderRadius.xl,
-        marginBottom: 20,
+        padding: 14,
         borderWidth: 1,
-        borderColor: 'rgba(197,160,112,0.24)',
+        borderColor: colors.border,
         ...shadows.card,
     },
-    sectionTitle: { ...typography.sectionHeader, color: '#F8F5F0', marginBottom: 16, fontWeight: '800' },
-    label: { fontSize: 13, color: '#D0C7B8', marginTop: 14, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 },
-    input: {
-        backgroundColor: '#0A0A0A',
-        padding: 14,
-        borderRadius: borderRadius.md,
-        marginTop: 6,
-        borderWidth: 1,
-        borderColor: 'rgba(197,160,112,0.26)',
-        fontSize: 15,
-        color: '#F8F5F0',
+    profileAvatar: { width: 52, height: 52, borderRadius: 26, backgroundColor: colors.surfaceMuted },
+    profileAvatarFallback: {
+        width: 52,
+        height: 52,
+        borderRadius: 26,
+        backgroundColor: colors.surfaceMuted,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
-    saveBtn: {
+    profileTextWrap: { flex: 1, marginLeft: 12, marginRight: 8, minWidth: 0 },
+    profileName: { fontSize: 17, fontWeight: '800', color: colors.text },
+    profileEmail: { marginTop: 2, fontSize: 12.5, color: colors.textMuted, fontWeight: '600' },
+
+    groupLabel: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: colors.textMuted,
+        marginTop: 16,
+        marginBottom: 8,
+        marginLeft: 4,
+        letterSpacing: 0.5,
+        textTransform: 'uppercase',
+    },
+    // Rows sit flush inside one card with hairline dividers rather than
+    // floating as separate cards with gaps between them.
+    group: {
+        backgroundColor: colors.surface,
+        borderRadius: borderRadius.xl,
+        borderWidth: 1,
+        borderColor: colors.border,
+        overflow: 'hidden',
+        ...shadows.card,
+    },
+    row: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 12,
+        paddingHorizontal: 16,
+        paddingVertical: 13,
+        minHeight: 52,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: colors.border,
+    },
+    rowLast: { borderBottomWidth: 0 },
+    rowTitle: { fontSize: 15, fontWeight: '700', color: colors.text, flex: 1 },
+    rowValueWrap: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    rowValue: { fontSize: 14, fontWeight: '600', color: colors.textMuted },
+
+    deleteBtn: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
         gap: 8,
-        backgroundColor: '#0A0A0A',
-        paddingVertical: 16,
+        marginTop: 24,
+        paddingVertical: 13,
         borderRadius: borderRadius.lg,
-        marginTop: 22,
+        backgroundColor: colors.surface,
         borderWidth: 1,
-        borderColor: 'rgba(197,160,112,0.45)',
-        ...shadows.button,
+        borderColor: colors.error,
     },
-    saveBtnText: { ...typography.button, color: '#F8F5F0', fontWeight: '800' },
-    themeRow: {
-        marginTop: 16,
-        paddingTop: 12,
-        borderTopWidth: 1,
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: 10,
+    deleteText: { color: colors.error, fontWeight: '800', fontSize: 15 },
+    deleteHint: {
+        fontSize: 12,
+        color: colors.textMuted,
+        lineHeight: 17,
+        fontWeight: '500',
+        textAlign: 'center',
+        marginTop: 10,
+        paddingHorizontal: 8,
     },
-    themeRowLeft: { flexDirection: "row", alignItems: "center", flex: 1, gap: 10 },
-    themeTextWrap: { flex: 1 },
-    themeTitle: { fontSize: 14, fontWeight: "800" },
-    themeSub: { fontSize: 12, fontWeight: "600", marginTop: 2 },
-    dangerSection: {
-        backgroundColor: 'rgba(193,18,31,0.08)',
-        padding: 18,
-        borderRadius: borderRadius.xl,
-        borderWidth: 1,
-        borderColor: 'rgba(193,18,31,0.4)',
-        marginBottom: 12,
-    },
-    dangerTitle: { fontSize: 16, fontWeight: '800', color: '#ff8a8a', marginBottom: 4 },
-    dangerSubtitle: { fontSize: 13, color: '#D6CBBF', marginBottom: 14, lineHeight: 18, fontWeight: '600' },
-    deleteBtn: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 12,
-        paddingHorizontal: 12,
-        backgroundColor: 'rgba(193,18,31,0.15)',
-        borderRadius: borderRadius.md,
-        borderWidth: 1,
-        borderColor: 'rgba(255,138,138,0.35)',
-        gap: 10,
-    },
-    deleteText: { color: '#ff9b9b', fontWeight: '800', fontSize: 15 },
-    logoutBtn: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 10,
-        marginTop: 20,
-        marginBottom: 30,
-        paddingVertical: 14,
-        paddingHorizontal: 16,
-        borderRadius: borderRadius.lg,
-        backgroundColor: '#121216',
-        borderWidth: 1,
-        borderColor: 'rgba(197,160,112,0.2)',
-    },
-    logoutText: { color: '#E1E5EF', fontWeight: '800', fontSize: 15 },
 });
