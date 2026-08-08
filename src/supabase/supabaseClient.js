@@ -13,6 +13,14 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     storage: AsyncStorage,
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInTab: false,
+    // React Native has no address bar to read a session out of.
+    detectSessionInUrl: false,
+    // Critical for OAuth on native: PKCE returns the credential as ?code= in
+    // the query string. The implicit flow returns it in the URL *fragment*
+    // (#access_token=…), and Android routinely drops the fragment when it
+    // hands a barberapp:// deep link to the app — so the callback arrived
+    // carrying nothing, no session was created, and sign-in silently landed
+    // back on the form even though the account had been created server-side.
+    flowType: "pkce",
   },
 });
