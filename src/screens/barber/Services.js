@@ -14,7 +14,6 @@ import { useLightStatusBar } from "../../hooks/useLightStatusBar";
 import { supabase } from "../../supabase/supabaseClient";
 import { fetchServiceImages } from "../../utils/serviceImageGallery";
 import { resolveStorageImageUrl } from "../../utils/storageImageUrl";
-import StatusBarBackdrop from "../../components/common/StatusBarBackdrop";
 import { colors, shadows } from "../../theme/barberTheme";
 
 export default function Services() {
@@ -338,7 +337,13 @@ export default function Services() {
                 <Text style={styles.serviceName}>{item.service_name}</Text>
                 <Text style={styles.priceText}>R{item.price}</Text>
                 <Text style={styles.durationText}>{normalizeDuration(item.duration_minutes ?? item.duration, 45)} min</Text>
-                <Text style={styles.galleryCountText}>{item.image_gallery?.length || 0} photos</Text>
+                <Text style={styles.galleryCountText}>
+                  {(() => {
+                    const n = item.image_gallery?.length || 0;
+                    if (!n) return "No photos yet";
+                    return `${n} photo${n === 1 ? "" : "s"}`;
+                  })()}
+                </Text>
               </>
             )}
           </View>
@@ -363,10 +368,14 @@ export default function Services() {
     );
   };
 
+  // No StatusBarBackdrop here: unlike the other barber screens this one is
+  // pushed with a nav header ("Manage Services"), so the status bar is
+  // already covered. The backdrop is absolutely positioned at the top of the
+  // root View — below that header — where it sat over the content and
+  // clipped the first rows. The nav header also already names the screen, so
+  // an in-screen heading just repeated it.
   return (
     <View style={styles.container}>
-      <StatusBarBackdrop />
-      <Text style={styles.header}>Services & Gallery</Text>
       <FlatList
         ref={listRef}
         keyboardShouldPersistTaps="handled"
@@ -506,7 +515,6 @@ export default function Services() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, backgroundColor: colors.background },
-  header: { fontSize: 24, fontWeight: "800", marginBottom: 20, color: colors.text },
   card: { flexDirection: "row", padding: 15, backgroundColor: colors.surface, borderRadius: 16, marginBottom: 12, borderWidth: 1, borderColor: colors.border, ...shadows.card },
   infoRow: { flexDirection: 'row', alignItems: 'center', flex: 1 },
   serviceTextWrap: { marginLeft: 15, flex: 1 },
