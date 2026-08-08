@@ -125,6 +125,7 @@ export default function Appointments({ navigation }) {
           appointment_date,
           appointment_time,
           status,
+          is_late_cancel,
           service_name,
           price,
           profiles!appointments_client_id_fkey (full_name, email, avatar_url)
@@ -136,7 +137,7 @@ export default function Appointments({ navigation }) {
       if (error) {
         const fallback = await supabase
           .from("appointments")
-          .select("id, appointment_date, appointment_time, status, service_name, price, client_id")
+          .select("id, appointment_date, appointment_time, status, is_late_cancel, service_name, price, client_id")
           .eq("barber_id", userId)
           .order("appointment_date", { ascending: true });
         if (fallback.error) throw fallback.error;
@@ -166,12 +167,27 @@ export default function Appointments({ navigation }) {
     }
   };
 
-  const updateStatus = async (appointmentId, newStatus, prevStatus) => {
+  const updateStatus = async (appointmentId, newStatus, prevStatus, booking) => {
     try {
+      // Accepting a slot that has already been and gone just confuses the
+      // client — the request is dead, it can only be left to expire.
+      const acceptingLapsed =
+        ["confirmed", "accepted", "approved"].includes(String(newStatus || "").toLowerCase()) &&
+        booking &&
+        getBookingTimestamp(booking) <= Date.now();
+
+      if (acceptingLapsed) {
+        Alert.alert(
+          "Too late to accept",
+          "This appointment time has already passed, so it can't be confirmed. Let the client know if you can still fit them in."
+        );
+        return;
+      }
+
       const newLower = String(newStatus || "").toLowerCase();
       const prevLower = String(prevStatus || "").toLowerCase();
       const acceptedStatuses = ["confirmed", "accepted", "approved"];
-      const terminalStatuses = ["cancelled", "declined", "rejected", "completed", "done"];
+      const terminalStatuses = ["cancelled", "declined", "rejected", "completed", "done", "no_show", "expired"];
       const isAcceptAction =
         acceptedStatuses.includes(newLower) &&
         !acceptedStatuses.includes(prevLower) &&
@@ -222,21 +238,30 @@ export default function Appointments({ navigation }) {
     const needsCompletion = [];
     const completed = [];
     const cancelled = [];
+    const lapsed = []; // requests whose date passed before anyone answered
     const now = Date.now();
 
     bookings.forEach((booking) => {
       const status = booking.status?.toLowerCase();
       const ts = getBookingTimestamp(booking);
 
-      if (status === "pending" || status === "requested") {
-        pending.push(booking);
+      if (status === "expired") {
+        lapsed.push(booking);
+      } else if (status === "pending" || status === "requested") {
+        // Once the slot itself has passed there's nothing left to accept or
+        // decline, so it drops out of the actionable list into history
+        // instead of sitting in "New Booking Requests" forever. The hourly
+        // server sweep relabels these to 'expired'; this keeps the screen
+        // honest in between runs.
+        if (ts > now) pending.push(booking);
+        else lapsed.push(booking);
       } else if (status === "confirmed" || status === "accepted" || status === "approved") {
         if (ts > now) {
           futureConfirmed.push(booking);
         } else {
           needsCompletion.push(booking);
         }
-      } else if (status === "cancelled" || status === "declined" || status === "rejected") {
+      } else if (status === "cancelled" || status === "declined" || status === "rejected" || status === "no_show") {
         cancelled.push(booking);
       } else if (status === "completed" || status === "done") {
         completed.push(booking);
@@ -253,8 +278,9 @@ export default function Appointments({ navigation }) {
     needsCompletion.sort(ascByTime);
     completed.sort(descByTime);
     cancelled.sort(descByTime);
+    lapsed.sort(descByTime);
 
-    return { pending, futureConfirmed, needsCompletion, completed, cancelled };
+    return { pending, futureConfirmed, needsCompletion, completed, cancelled, lapsed };
   }, [bookings]);
 
   const activeSections = [
@@ -264,6 +290,7 @@ export default function Appointments({ navigation }) {
 
   const historySections = [
     { title: "Completed", data: categorized.completed },
+    { title: "Missed — no response", data: categorized.lapsed },
     { title: "Cancelled / Declined", data: categorized.cancelled },
   ].filter((section) => section.data.length > 0);
 
@@ -348,19 +375,38 @@ export default function Appointments({ navigation }) {
       </View>
 
       <View style={styles.fabColumn}>
-        <TouchableOpacity style={[styles.fabBtn, styles.acceptFab]} onPress={() => updateStatus(item.id, "confirmed", item.status)}>
+        <TouchableOpacity style={[styles.fabBtn, styles.acceptFab]} onPress={() => updateStatus(item.id, "confirmed", item.status, item)}>
           <Icon name="checkmark" size={22} color="#fff" />
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.fabBtn, styles.declineFab]} onPress={() => updateStatus(item.id, "cancelled", item.status)}>
+        <TouchableOpacity style={[styles.fabBtn, styles.declineFab]} onPress={() => updateStatus(item.id, "declined", item.status)}>
           <Icon name="close" size={22} color="#fff" />
         </TouchableOpacity>
       </View>
     </View>
   );
 
-  const renderHistoryCard = (item) => {
+  const historyLabel = (item) => {
     const status = (item.status || "").toLowerCase();
-    const isDone = status === "completed" || status === "confirmed" || status === "done";
+    if (status === "completed" || status === "confirmed" || status === "done") {
+      return { text: "Completed", color: colors.success };
+    }
+    if (status === "declined" || status === "rejected") {
+      return { text: "Declined", color: colors.error };
+    }
+    // Only reaches history as pending when its slot has already passed.
+    if (status === "expired" || status === "pending" || status === "requested") {
+      return { text: "No response", color: colors.textMuted };
+    }
+    if (status === "no_show") {
+      return { text: "No-show", color: colors.error };
+    }
+    // Plain client cancellation — flagged separately if it landed inside the
+    // 48h window, so a pattern of late cancels is visible at a glance.
+    return { text: item.is_late_cancel ? "Cancelled (late)" : "Cancelled", color: colors.error };
+  };
+
+  const renderHistoryCard = (item) => {
+    const label = historyLabel(item);
     return (
       <View key={item.id} style={styles.historyCard}>
         <View style={styles.historyLeft}>
@@ -378,9 +424,7 @@ export default function Appointments({ navigation }) {
         </View>
         <View style={styles.historyRight}>
           <Text style={styles.historyTime}>{item.appointment_date}</Text>
-          <Text style={[styles.historyStatus, { color: isDone ? colors.success : colors.error }]}>
-            {isDone ? "Completed" : "Cancelled"}
-          </Text>
+          <Text style={[styles.historyStatus, { color: label.color }]}>{label.text}</Text>
         </View>
       </View>
     );
@@ -428,10 +472,28 @@ export default function Appointments({ navigation }) {
           </Text>
         </View>
       </View>
-      <TouchableOpacity style={styles.completeBtn} onPress={() => updateStatus(item.id, "completed", item.status)}>
-        <Icon name="checkmark-done" size={16} color="#fff" />
-        <Text style={styles.completeBtnText}>Complete</Text>
-      </TouchableOpacity>
+      <View style={styles.completionActions}>
+        <TouchableOpacity style={styles.completeBtn} onPress={() => updateStatus(item.id, "completed", item.status)}>
+          <Icon name="checkmark-done" size={16} color="#fff" />
+          <Text style={styles.completeBtnText}>Complete</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.noShowBtn}
+          onPress={() =>
+            Alert.alert(
+              "Mark as no-show?",
+              "The client won't be able to rate this visit.",
+              [
+                { text: "Cancel", style: "cancel" },
+                { text: "Mark no-show", style: "destructive", onPress: () => updateStatus(item.id, "no_show", item.status) },
+              ]
+            )
+          }
+        >
+          <Icon name="close-circle-outline" size={16} color={colors.error} />
+          <Text style={styles.noShowBtnText}>No-show</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 
@@ -740,8 +802,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
-  completionLeft: { flexDirection: "row", alignItems: "center", flex: 1, marginRight: 10 },
+  completionLeft: { flexDirection: "row", alignItems: "center", flex: 1, marginRight: 10, minWidth: 0 },
   completionMeta: { fontSize: 13, color: colors.textMuted, fontWeight: "700", marginTop: 3 },
+  completionActions: { flexDirection: "row", gap: 8, flexShrink: 0 },
   completeBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -751,6 +814,17 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   completeBtnText: { marginLeft: 4, color: colors.accentText, fontSize: 12, fontWeight: "800" },
+  noShowBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: colors.error,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 999,
+  },
+  noShowBtnText: { marginLeft: 4, color: colors.error, fontSize: 12, fontWeight: "800" },
   emptyCard: {
     borderRadius: 14,
     padding: 14,

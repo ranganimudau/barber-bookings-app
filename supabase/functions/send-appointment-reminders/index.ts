@@ -76,6 +76,23 @@ Deno.serve(async (req: Request) => {
       }
 
       const clientId = appointment.client_id || userId;
+
+      // Settings → Notifications → Appointment reminders. Mark the reminder
+      // sent either way so an opted-out user isn't retried every cron tick.
+      const { data: prefRow } = await supabase
+        .from("profiles")
+        .select("notify_reminders")
+        .eq("id", clientId)
+        .maybeSingle();
+
+      if (prefRow?.notify_reminders === false) {
+        await supabase
+          .from("appointment_reminders")
+          .update({ sent_at: now.toISOString() })
+          .eq("appointment_id", appointmentId);
+        continue;
+      }
+
       const { data: tokenRows, error: tokenErr } = await supabase
         .from("user_push_tokens")
         .select("token")

@@ -23,7 +23,7 @@ const isConfirmedStatus = (status?: string) =>
   ["confirmed", "accepted", "approved"].includes((status || "").toLowerCase());
 
 const isCancelledStatus = (status?: string) =>
-  ["cancelled", "declined", "rejected"].includes((status || "").toLowerCase());
+  ["cancelled", "declined", "rejected", "no_show"].includes((status || "").toLowerCase());
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -60,6 +60,10 @@ Deno.serve(async (req: Request) => {
 
     let title = "";
     let body = "";
+    // Which profiles.notify_* switch governs this message, if any. A new
+    // booking request has no switch — it's the barber's core workflow, not
+    // something they should be able to silently miss.
+    let prefColumn: string | null = null;
 
     if (type === "INSERT") {
       title = "New Booking Request";
@@ -74,14 +78,40 @@ Deno.serve(async (req: Request) => {
         });
       }
 
-      if (isCancelledStatus(nextStatus)) {
-        // Barber declined -> notify the client.
-        targetUserIds = [(clientId || barberId)].filter(Boolean);
-        title = "Booking Cancelled";
-        body = `${service} on ${date} at ${time} was cancelled.`;
+      if (nextStatus === "expired") {
+        // Swept by the hourly expire_stale_pending_appointments cron: the
+        // business never answered and the slot has passed. The client is
+        // the one left hanging, so they're the one who gets told.
+        targetUserIds = [clientId].filter(Boolean);
+        prefColumn = "notify_booking_declined";
+        title = "Booking Expired";
+        body = `${service} on ${date} at ${time} wasn't answered in time. Try booking again.`;
+      } else if (isCancelledStatus(nextStatus)) {
+        prefColumn = "notify_booking_declined";
+        if (nextStatus === "declined" || nextStatus === "rejected") {
+          // Barber-initiated -> tell the client.
+          targetUserIds = [(clientId || barberId)].filter(Boolean);
+          title = "Booking Declined";
+          body = `${service} on ${date} at ${time} wasn't accepted. Try another time or business.`;
+        } else if (nextStatus === "no_show") {
+          // Barber-initiated -> tell the client.
+          targetUserIds = [(clientId || barberId)].filter(Boolean);
+          title = "Marked as no-show";
+          body = `${service} on ${date} at ${time} was marked as a no-show.`;
+        } else {
+          // A plain cancellation can come from either side — most often the
+          // client, including when they delete their account. Notifying only
+          // the client meant the business was never told its slot had freed
+          // up and kept holding it for nobody. Tell both; whoever pressed
+          // cancel gets a harmless confirmation, and nobody is left guessing.
+          targetUserIds = [clientId, barberId].filter(Boolean);
+          title = "Booking Cancelled";
+          body = `${service} on ${date} at ${time} was cancelled.`;
+        }
       } else if (isConfirmedStatus(nextStatus)) {
         // Confirmation -> notify the client.
         targetUserIds = [(clientId || barberId)].filter(Boolean);
+        prefColumn = "notify_booking_confirmed";
         title = "Booking Confirmed";
         body = `${service} on ${date} at ${time} is confirmed.`;
 
@@ -113,6 +143,33 @@ Deno.serve(async (req: Request) => {
         status: 200,
         headers: { "Content-Type": "application/json" },
       });
+    }
+
+    // Honour the recipient's notification switches (Settings → Notifications).
+    // A row that's missing or has no explicit false still gets the push —
+    // failing open matches the columns' default and avoids silently
+    // swallowing notifications for anyone created before this shipped.
+    if (prefColumn && targetUserIds.length > 0) {
+      const { data: prefRows, error: prefError } = await supabase
+        .from("profiles")
+        .select(`id, ${prefColumn}`)
+        .in("id", targetUserIds);
+
+      if (prefError) throw prefError;
+
+      const optedOut = new Set(
+        (prefRows || [])
+          .filter((row: Record<string, unknown>) => row[prefColumn] === false)
+          .map((row: Record<string, unknown>) => row.id as string),
+      );
+      targetUserIds = targetUserIds.filter((id) => !optedOut.has(id));
+
+      if (targetUserIds.length === 0) {
+        return new Response(JSON.stringify({ ok: true, skipped: "all recipients opted out" }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
     }
 
     const { data: tokenRows, error: tokenError } = await supabase
